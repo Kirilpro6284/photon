@@ -6,7 +6,7 @@
  * Store lighting color palette and dynamic weather properties
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

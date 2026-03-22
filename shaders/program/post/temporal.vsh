@@ -8,7 +8,7 @@
  * https://github.com/zombye/spectrum/blob/master/shaders/program/temporal.glsl (GLSL implementation from Spectrum)
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

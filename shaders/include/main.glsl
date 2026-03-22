@@ -23,6 +23,14 @@ const float goldenAngle = tau / goldenRatio / goldenRatio;
 const float renderScale = inversesqrt(float(TAA_UPSCALING_FACTOR));
 const float handDepth   = 0.56;
 
+#if TAA_UPSCALING_FACTOR == 1
+	#define taauRenderScale 1.0
+#elif TAA_UPSCALING_FACTOR == 2
+	#define taauRenderScale 0.7071
+#elif TAA_UPSCALING_FACTOR == 4
+	#define taauRenderScale 0.5
+#endif
+
 //--// Functions //-----------------------------------------------------------//
 
 #define rcp(x) (1.0 / (x))

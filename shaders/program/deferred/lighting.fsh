@@ -3,7 +3,7 @@
  * Deferred lighting pass for solid objects
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
@@ -218,7 +218,7 @@ void main() {
 	vec3 geometryNormal = decodeUnitVector(data[1].xy);
 	vec2 lmCoord = data[1].zw;
 
-#ifdef MC_NORMAL_MAP
+#ifdef NORMAL_MAP
 	vec4 normalData = unpackUnormArb(encoded.z, uvec4(12, 12, 7, 1));
 	vec3 normal = decodeUnitVector(normalData.xy);
 #else
@@ -242,7 +242,7 @@ void main() {
 
 	Material material = getMaterial(albedo, blockId);
 
-#ifdef MC_SPECULAR_MAP
+#ifdef SPECULAR_MAP
 	vec4 specularTex = unpackUnorm4x8(encoded.w);
 	decodeSpecularTex(specularTex, material);
 #endif

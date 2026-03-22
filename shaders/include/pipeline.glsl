@@ -1,7 +1,7 @@
 /*
 0  | rgba16f | fullscreen        | overlays, vanilla sky (solid -> deferred), forwardly rendered objects (translucent -> composite)
 1  | rg32ui  | fullscreen        | gbuffer data (solid -> composite)
-2  | rgb16f  | fullscreen        | velocity vectors (solid -> composite), post-processing color (composite)
+2  | rgb16f  | fullscreen        | post-processing color (composite)
 3  | rgb11f  | TAA render scale  | scene radiance (deferred -> composite)
 4  | rgb11f  | 256x128           | sky capture, lighting color palette, dynamic weather properties (deferred -> composite)
 5  | rgba16  | TAA render scale  | low-res clouds (deferred), indirect lighting data (deferred), responsive AA flag and depth min/max (composite)
@@ -53,44 +53,62 @@ const bool colortex15Clear = false;
 
 const vec4 colortex0ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
 const vec4 colortex9ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
-
+*/
 // Select texture format for colortex1 based on how much data is required
 // This is formatted like this because OF doesn't detect #if defined so I can't use #elif or ||
 #ifdef MC_GL_VENDOR_INTEL
 	// Use floating point texture format for colortex1, even though it stores unsigned integers
 	// This really shouldn't work, but it seems to be required to work properly on Intel and Mesa drivers
 	#ifdef SPECULAR_MAP
+	/*
 		const int colortex1Format = RGBA32F;
+	*/
 	#else
 		#ifdef NORMAL_MAP
+		/*
 			const int colortex1Format = RGB32F;
+		*/
 		#else
+		/*
 			const int colortex1Format = RG32F;
+		*/
 		#endif
 	#endif
 #else
 	#ifdef MC_GL_VENDOR_MESA
 	 	// Mesa drivers also require the floating point texture format hack
 		#ifdef SPECULAR_MAP
+		/*
 			const int colortex1Format = RGBA32F;
+		*/
 		#else
 			#ifdef NORMAL_MAP
+			/*
 				const int colortex1Format = RGB32F;
+			*/
 			#else
+			/*
 				const int colortex1Format = RG32F;
+			*/
 			#endif
 		#endif
 	#else
 		// Use the correct texture format for colortex1
 		#ifdef SPECULAR_MAP
+		/*
 			const int colortex1Format = RGBA32UI;
+		*/
 		#else
 			#ifdef NORMAL_MAP
+			/*
 				const int colortex1Format = RGB32UI;
+			*/
 			#else
+			/*
 				const int colortex1Format = RG32UI;
+			*/
 			#endif
 		#endif
 	#endif
 #endif
-*/
+

@@ -3,7 +3,7 @@
  * Calculate shadow penumbra radius and SSS depth
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

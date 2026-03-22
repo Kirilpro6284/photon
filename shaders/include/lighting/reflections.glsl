@@ -67,7 +67,7 @@ vec3 getSpecularReflections(
 
 	float dither = R1(frameCounter, texelFetch(noisetex, ivec2(gl_FragCoord.xy) & 511, 0).b);
 
-#if defined MC_SPECULAR_MAP && defined SSR_ROUGH
+#if defined SPECULAR_MAP && defined SSR_ROUGH
 	vec2 hash = R2(
 		SSR_RAY_COUNT * frameCounter,
 		vec2(

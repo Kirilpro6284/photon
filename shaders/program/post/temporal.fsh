@@ -3,7 +3,7 @@
  * Perform temporal anti-aliasing/upscaling, store global exposure for later
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
@@ -158,7 +158,7 @@ void main() {
 	vec2 adjustedCoord = clamp01(coord + 0.5 * taaOffset);
 
 	vec3 closest = getClosestFragment(srcTexel, depth);
-	vec2 velocity = closest.xy - reproject(closest, colortex2).xy;
+	vec2 velocity = closest.xy - reproject(closest).xy;
 	vec2 previousCoord = coord - velocity;
 
 #if TAA_UPSCALING_FACTOR > 1

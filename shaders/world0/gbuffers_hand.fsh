@@ -2,4 +2,5 @@
 #define PROGRAM_GBUFFERS_ENTITIES
 #define PROGRAM_GBUFFERS_HAND
 #define WORLD_OVERWORLD
-#include "/program/gbuffer/solid.fsh"
+#define fsh
+#include "/program/gbuffer/solid.glsl"

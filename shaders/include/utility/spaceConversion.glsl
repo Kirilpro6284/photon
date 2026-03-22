@@ -64,20 +64,6 @@ vec3 reproject(vec3 screenPos) {
 
 	return reprojectSceneSpace(pos, isHand);
 }
-
-vec3 reproject(vec3 screenPos, sampler2D velocitySampler) {
-	vec3 velocity = texelFetch(velocitySampler, ivec2(screenPos.xy * viewSize), 0).xyz;
-
-	if (maxOf(abs(velocity)) < eps) {
-		return reproject(screenPos);
-	} else {
-		vec3 pos = screenToViewSpace(screenPos, false);
-		     pos = pos - velocity;
-		     pos = viewToScreenSpace(pos, false);
-
-		return pos;
-	}
-}
 #endif
 
 #endif // INCLUDE_UTILITY_SPACECONVERSION

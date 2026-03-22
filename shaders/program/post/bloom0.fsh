@@ -3,7 +3,7 @@
  * Resize image to 960x540 (fixed-size first bloom tile)
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

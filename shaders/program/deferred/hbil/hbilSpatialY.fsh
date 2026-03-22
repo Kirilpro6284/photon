@@ -3,7 +3,7 @@
  * Spatial filter for HBIL - vertical pass
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

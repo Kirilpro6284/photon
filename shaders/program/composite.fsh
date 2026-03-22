@@ -3,7 +3,7 @@
  * Blend solid and translucent layers, apply effects behind water
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

@@ -7,7 +7,7 @@
  * GTAO - https://github.com/Patapom/GodComplex/blob/master/Tests/TestHBIL/2018%20Mayaux%20-%20Horizon-Based%20Indirect%20Lighting%20(HBIL).pdf (new paper)
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
@@ -238,7 +238,7 @@ void main() {
 
 	vec2 lmCoord = unpackUnorm4x8(encoded.y).zw;
 
-#ifdef MC_NORMAL_MAP
+#ifdef NORMAL_MAP
 	vec4 normalData = unpackUnormArb(encoded.z, uvec4(12, 12, 7, 1));
 	vec2 encodedNormal = normalData.xy;
 #else

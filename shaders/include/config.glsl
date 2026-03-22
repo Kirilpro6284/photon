@@ -288,7 +288,7 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
   #define TEXTURE_FORMAT TEXTURE_FORMAT_LAB // [TEXTURE_FORMAT_LAB TEXTURE_FORMAT_OLD]
 
 //#define NORMAL_MAP
-//#define SPECULAR_MAP
+  #define SPECULAR_MAP
 
   #define HARDCODED_EMISSION
   #define HARDCODED_SSS
@@ -297,16 +297,16 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
   #define BLENDING_METHOD_MIX 0
   #define BLENDING_METHOD_TINTED 1
   #define BLENDING_METHOD BLENDING_METHOD_TINTED // [BLENDING_METHOD_MIX BLENDING_METHOD_TINTED]
-
-// Override MC_NORMAL_MAP and MC_SPECULAR_MAP instead of using the settings directly (so that the options in the shader selection screen work correctly instead of breaking the pack)
-#if defined MC_NORMAL_MAP && !defined NORMAL_MAP
-	#undef MC_NORMAL_MAP
+/*
+// Override NORMAL_MAP and SPECULAR_MAP instead of using the settings directly (so that the options in the shader selection screen work correctly instead of breaking the pack)
+#if defined NORMAL_MAP && !defined NORMAL_MAP
+	#undef NORMAL_MAP
 #endif
 
-#if defined MC_SPECULAR_MAP && !defined SPECULAR_MAP
-	#undef MC_SPECULAR_MAP
+#if defined SPECULAR_MAP && !defined SPECULAR_MAP
+	#undef SPECULAR_MAP
 #endif
-
+*/
   #define RAIN_PUDDLES // Puddles form on terrain during rain
 
 //--// Waving Blocks

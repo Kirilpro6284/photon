@@ -3,7 +3,7 @@
  * Reproject scene history buffer for HBIL
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

@@ -3,7 +3,7 @@
  * Pass global exposure and white balance matrix to fragment stage
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

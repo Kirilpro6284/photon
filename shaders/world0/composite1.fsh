@@ -5,7 +5,7 @@
  * Render volumetric fog
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

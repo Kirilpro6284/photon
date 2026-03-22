@@ -5,7 +5,7 @@
  * Render cloud shadow map
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

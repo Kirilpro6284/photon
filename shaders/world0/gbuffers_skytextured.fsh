@@ -1,5 +1,5 @@
 #version 410 compatibility
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

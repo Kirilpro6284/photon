@@ -3,7 +3,7 @@
  * Apply bloom, color grading, tone mapping, convert to rec. 709
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 

@@ -3,7 +3,7 @@
  * Temporal filter for HBIL
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
@@ -179,7 +179,7 @@ void main() {
 	const float smearAmount     = 0.25;
 	const float smearStrictness = 0.5;
 
-	vec3 previousScreenPos = reproject(screenPos, colortex2);
+	vec3 previousScreenPos = reproject(screenPos);
 
 	if (clamp01(previousScreenPos.xy) == previousScreenPos.xy) {
 		irradianceHistory = texture(colortex10, previousScreenPos.xy * hbilRenderScale);

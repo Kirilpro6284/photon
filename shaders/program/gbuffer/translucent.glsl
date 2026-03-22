@@ -1,4 +1,6 @@
-#include "/include/global.glsl"
+#include "/include/main.glsl"
+
+#ifdef fsh
 
 //--// Outputs //-------------------------------------------------------------//
 
@@ -35,11 +37,11 @@ uniform sampler2D colortex15; // Cloud shadow map
 
 uniform sampler2D gtexture;
 
-#ifdef MC_NORMAL_MAP
+#ifdef NORMAL_MAP
 uniform sampler2D normals;
 #endif
 
-#ifdef MC_SPECULAR_MAP
+#ifdef SPECULAR_MAP
 uniform sampler2D specular;
 #endif
 
@@ -191,12 +193,12 @@ void main() {
 
 		material = getMaterial(albedo, blockId);
 
-#ifdef MC_SPECULAR_MAP
+#ifdef SPECULAR_MAP
 		vec4 specularTex = textureLod(specular, texCoord, 0);
 		decodeSpecularTex(specularTex, material);
 #endif
 
-#ifdef MC_NORMAL_MAP
+#ifdef NORMAL_MAP
 		vec3 normalTex = texture(normals, texCoord, lodBias).xyz;
 		decodeNormalTex(normalTex, normalTangent, materialAo);
 #endif
@@ -286,3 +288,98 @@ void main() {
 
 	fragColor.rgb *= rcp(fragColor.a);
 }
+
+#endif
+
+#ifdef vsh
+
+
+//--// Outputs //-------------------------------------------------------------//
+
+out vec2 texCoord;
+out vec2 lmCoord;
+out vec3 viewPos;
+out vec3 scenePos;
+out vec3 viewerDirTangent;
+
+flat out uint blockId;
+flat out vec4 tint;
+flat out mat3 tbnMatrix;
+
+//--// Inputs //--------------------------------------------------------------//
+
+attribute vec4 at_tangent;
+attribute vec3 mc_Entity;
+attribute vec2 mc_midTexCoord;
+
+//--// Uniforms //------------------------------------------------------------//
+
+uniform sampler2D noisetex;
+
+uniform int renderStage;
+
+//--// Camera uniforms
+
+uniform float near;
+uniform float far;
+
+uniform vec3 cameraPosition;
+
+uniform mat4 gbufferModelView;
+uniform mat4 gbufferModelViewInverse;
+uniform mat4 gbufferProjection;
+uniform mat4 gbufferProjectionInverse;
+
+//--// Time uniforms
+
+uniform float frameTimeCounter;
+
+uniform float rainStrength;
+
+//--// Custom uniforms
+
+uniform vec2 taaOffset;
+
+//--// Includes //------------------------------------------------------------//
+
+#include "/block.properties"
+
+#include "/include/utility/spaceConversion.glsl"
+
+#include "/include/vertex/animation.glsl"
+
+//--// Functions //-----------------------------------------------------------//
+
+void main() {
+	texCoord = gl_MultiTexCoord0.xy;
+	lmCoord  = clamp01(gl_MultiTexCoord1.xy * rcp(240.0));
+	tint     = gl_Color;
+	blockId  = uint(max0(mc_Entity.x - 10000.0));
+
+#ifdef PROGRAM_GBUFFERS_TEXTURED_LIT
+#ifdef HIDE_WORLD_BORDER
+	if (renderStage == MC_RENDER_STAGE_WORLD_BORDER) { gl_Position = vec4(-1.0); return; }
+#endif
+#endif
+
+	tbnMatrix[2] = mat3(gbufferModelViewInverse) * normalize(gl_NormalMatrix * gl_Normal);
+	tbnMatrix[0] = mat3(gbufferModelViewInverse) * normalize(gl_NormalMatrix * at_tangent.xyz);
+	tbnMatrix[1] = cross(tbnMatrix[0], tbnMatrix[2]) * sign(at_tangent.w);
+
+	viewPos  = transform(gl_ModelViewMatrix, gl_Vertex.xyz);
+	scenePos = transform(gbufferModelViewInverse, viewPos);
+
+	viewerDirTangent = normalize(gbufferModelViewInverse[3].xyz - scenePos) * tbnMatrix;
+
+	vec4 clipPos  = project(gl_ProjectionMatrix, viewPos);
+
+#ifdef TAA
+    clipPos.xy += taaOffset * clipPos.w;
+	clipPos.xy  = clipPos.xy * renderScale + clipPos.w * (renderScale - 1.0);
+#endif
+
+	gl_Position = clipPos;
+}
+
+
+#endif

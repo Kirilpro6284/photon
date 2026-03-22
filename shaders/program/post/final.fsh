@@ -1,6 +1,6 @@
 #define INFO 0 // [0 1]
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 #include "/include/pipeline.glsl"
 
 //--// Outputs //-------------------------------------------------------------//

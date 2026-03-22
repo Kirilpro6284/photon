@@ -3,7 +3,7 @@
  * Generate sky SH for far-field indirect lighting
  */
 
-#include "/include/global.glsl"
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
