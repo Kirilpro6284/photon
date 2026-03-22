@@ -18,11 +18,18 @@ attribute vec2 mc_midTexCoord;
 
 //--// Uniforms //------------------------------------------------------------//
 
+uniform sampler2DShadow shadowtex1HW;
+uniform sampler2DShadow shadowtex0HW;
+uniform sampler2D shadowcolor0;
+uniform sampler2D shadowtex0;
+
 uniform sampler2D noisetex;
 
 //--// Camera uniforms
 
 uniform vec3 cameraPosition;
+
+uniform int isEyeInWater;
 
 //--// Shadow uniforms
 
@@ -66,10 +73,9 @@ void main() {
 	scenePos  = worldPos - cameraPosition;
 
 	shadowViewPos = transform(shadowModelView, scenePos);
-	shadowClipPos = projectOrtho(gl_ProjectionMatrix, shadowViewPos);
+	shadowClipPos = shadowProjScale * shadowViewPos;
 
-	float distortionFactor = getShadowDistortionFactor(shadowClipPos.xy);
-	shadowClipPos = distortShadowSpace(shadowClipPos, distortionFactor);
+	shadowClipPos.xy = distortShadowPos(shadowClipPos.xy);
 
 	gl_Position = vec4(shadowClipPos, 1.0);
 }

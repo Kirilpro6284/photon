@@ -11,7 +11,7 @@
 #include "/include/utility/random.glsl"
 #include "/include/utility/rotation.glsl"
 
-const float shadowTexelSize = rcp(floor(float(shadowMapResolution) * MC_SHADOW_QUALITY));
+const float shadowTexelSize = rcp(floor(float(shadowMapResolution)));
 
 // Fake, lightmap-based shadows for outside of the shadow distance or when shadow mapping is disabled
 float lightmapShadows(float skylight, float NoL, out float sssDepth) {
@@ -20,49 +20,33 @@ float lightmapShadows(float skylight, float NoL, out float sssDepth) {
 }
 
 #ifdef SHADOW
-float blockerSearch(sampler2D depthSampler, vec3 shadowScreenPos, vec3 shadowClipPos, float dither, out float sssDepth) {
+float getBlockerDepth (vec3 shadowViewPos, float dither) {
 	const uint stepCount = SHADOW_BLOCKER_SEARCH_STEPS;
 
-	float radius = SHADOW_BLOCKER_SEARCH_RADIUS * shadowProjection[0].x;
+	float radius = SHADOW_BLOCKER_SEARCH_RADIUS * shadowProjScale.x;
 
 	float blockerDepth = 0.0;
 	float weightSum    = 0.0;
-	sssDepth           = 0.0;
 
-	mat2 rotateAndScale = getRotationMatrix(tau * dither) * radius;
+	mat2 samplePhase = getRotationMatrix(tau * dither) * radius;
+
+	vec2 shadowClipPos = shadowViewPos.xy * shadowProjScale.xy;
 
 	for (uint i = 0; i < stepCount; ++i) {
-		vec2 coord   = shadowClipPos.xy + rotateAndScale * blueNoiseDisk[i];
-		     coord /= getShadowDistortionFactor(coord);
-		     coord   = 0.5 * coord + 0.5;
+		vec2 coord = distortShadowPos(shadowProjScale.xy * shadowViewPos.xy + samplePhase * blueNoiseDisk[i]) * 0.5 + 0.5;
 
-		float depth  = texelFetch(depthSampler, ivec2(coord * shadowMapResolution * MC_SHADOW_QUALITY), 0).x;
-		float weight = step(depth, shadowScreenPos.z);
-
-		blockerDepth += weight * depth;
-		weightSum    += weight;
-		sssDepth     += max0(shadowScreenPos.z - depth);
+		blockerDepth += clamp(shadowProjScaleInv.z * (texelFetch(shadowtex0, ivec2(coord * shadowMapResolution), 0).r * 2.0 - 1.0) - shadowViewPos.z, 0.0, SHADOW_MAX_BLOCKER_DEPTH);
 	}
 
-	sssDepth *= -shadowProjectionInverse[2].z * rcp(SHADOW_DEPTH_SCALE * float(stepCount));
-
-	return weightSum == 0.0 ? 0.0 : blockerDepth / weightSum;
-}
-
-float blockerDepthToPenumbraRadius(float depth, float blockerDepth, float cloudShadow) {
-	float penumbraScale  = 8.0 * SHADOW_PENUMBRA_SCALE;
-	float penumbraRadius = penumbraScale * (depth - blockerDepth) / blockerDepth;
-	      penumbraRadius = min(penumbraRadius, SHADOW_BLOCKER_SEARCH_RADIUS);
-
-	return (penumbraRadius + 0.125 * (1.0 - cloudShadow)) * shadowProjection[0].x;
+	return blockerDepth * rcp(float(stepCount));
 }
 
 vec3 shadowSimple(vec3 shadowScreenPos) {
 #ifdef SHADOW_COLOR
-	float shadow0 = texture(shadowtex0, shadowScreenPos);
+	float shadow0 = texture(shadowtex0HW, shadowScreenPos);
 
 	if (shadow0 < 1.0 - eps) {
-		float shadow1 = texture(shadowtex1, shadowScreenPos);
+		float shadow1 = texture(shadowtex1HW, shadowScreenPos);
 		vec3  color   = texture(shadowcolor0, shadowScreenPos.xy).rgb;
 
 		return shadow0 + shadow1 * color * (1.0 - shadow0);
@@ -70,28 +54,23 @@ vec3 shadowSimple(vec3 shadowScreenPos) {
 		return vec3(shadow0);
 	}
 #else
-	return vec3(texture(shadowtex1, shadowScreenPos));
+	return vec3(texture(shadowtex1HW, shadowScreenPos));
 #endif
 }
 
 vec3 shadowSoft(
 	vec3 shadowScreenPos,
 	vec3 shadowClipPos,
-	float penumbraRadius,
-	float distortionFactor,
+	float penumbraSize,
+	float biasAmount,
 	float dither
 ) {
-	// penumbraRadius > maxFilterRadius: blur
-	// penumbraRadius < minFilterRadius: anti-alias (blur then sharpen)
-	float minFilterRadius = 2.0 * shadowTexelSize * distortionFactor;
+	float kernelRadius = shadowProjScale.x * max(SHADOW_SMOOTHING * biasAmount, penumbraSize);
 
-	float filterRadius = max(penumbraRadius, minFilterRadius);
-	float filterScale  = sqr(filterRadius / minFilterRadius);
-
-	uint stepCount = uint(SHADOW_PCF_STEPS_MIN + SHADOW_PCF_STEPS_INCREASE * filterScale);
+	uint stepCount = uint(SHADOW_PCF_STEPS_MIN + SHADOW_PCF_STEPS_INCREASE * smoothstep(0.2, 0.4, penumbraSize));
 	     stepCount = min(stepCount, SHADOW_PCF_STEPS_MAX);
 
-	mat2 rotateAndScale = getRotationMatrix(tau * dither) * filterRadius;
+	mat2 rotateAndScale = getRotationMatrix(tau * dither) * kernelRadius;
 
 	float shadow = 0.0;
 	vec3 shadowColor = vec3(0.0);
@@ -99,14 +78,14 @@ vec3 shadowSoft(
 	// perform first 4 iterations
 	for (uint i = 0; i < 4; ++i) {
 		vec2 offset = rotateAndScale * blueNoiseDisk[i];
-		vec2 coord  = shadowClipPos.xy + offset;
-		     coord /= getShadowDistortionFactor(coord);
-		     coord  = coord * 0.5 + 0.5;
+		vec2 coord  = distortShadowPos(shadowClipPos.xy + offset) * 0.5 + 0.5;
+		  //   coord /= getShadowDistortionFactor(coord);
+		  //   coord  = coord * 0.5 + 0.5;
 
 #ifdef SHADOW_COLOR
-		shadow += texture(shadowtex0, vec3(coord, shadowScreenPos.z));
+		shadow += texture(shadowtex0HW, vec3(coord, shadowScreenPos.z));
 #else
-		shadow += texture(shadowtex1, vec3(coord, shadowScreenPos.z));
+		shadow += texture(shadowtex1HW, vec3(coord, shadowScreenPos.z));
 #endif
 	}
 
@@ -117,34 +96,35 @@ vec3 shadowSoft(
 	// perform remaining iterations
 	for (uint i = 4; i < stepCount; ++i) {
 		vec2 offset = rotateAndScale * blueNoiseDisk[i];
-		vec2 coord  = shadowClipPos.xy + offset;
-		     coord /= getShadowDistortionFactor(coord);
-		     coord  = coord * 0.5 + 0.5;
+		vec2 coord  = distortShadowPos(shadowClipPos.xy + offset) * 0.5 + 0.5;
+		 //    coord /= getShadowDistortionFactor(coord);
+		  //   coord  = coord * 0.5 + 0.5;
 
 #ifdef SHADOW_COLOR
-		shadow += texture(shadowtex0, vec3(coord, shadowScreenPos.z));
+		shadow += texture(shadowtex0HW, vec3(coord, shadowScreenPos.z));
 #else
-		shadow += texture(shadowtex1, vec3(coord, shadowScreenPos.z));
+		shadow += texture(shadowtex1HW, vec3(coord, shadowScreenPos.z));
 #endif
 	}
 
 	float perSampleWeight = rcp(float(stepCount));
 
 	// sharpening for small penumbra sizes
-	float sharpeningThreshold = 0.4 * max0((minFilterRadius - penumbraRadius) / minFilterRadius);
-	shadow = linearStep(sharpeningThreshold, 1.0 - sharpeningThreshold, shadow * perSampleWeight);
+	shadow = clamp01(mix(0.5, shadow * perSampleWeight, clamp(SHADOW_SMOOTHING * biasAmount / penumbraSize, 1.0, 1.0 + SHADOW_SMOOTHING)));
 
 #ifdef SHADOW_COLOR
 	if (shadow > 1.0 - eps) return vec3(shadow);
 
+	//rotateAndScale *= 0.25;
+
 	// filter colored shadow
 	for (uint i = 0; i < stepCount; ++i) {
 		vec2 offset = rotateAndScale * blueNoiseDisk[i];
-		vec2 coord  = shadowClipPos.xy + offset;
-		     coord /= getShadowDistortionFactor(coord);
-		     coord  = coord * 0.5 + 0.5;
+		vec2 coord  = distortShadowPos(shadowClipPos.xy + offset) * 0.5 + 0.5;
+		//     coord /= getShadowDistortionFactor(coord);
+	//	     coord  = coord * 0.5 + 0.5;
 
-		float shadow = texture(shadowtex1, vec3(coord, shadowScreenPos.z));
+		float shadow = texture(shadowtex1HW, vec3(coord, shadowScreenPos.z));
 		vec3  color  = texture(shadowcolor0, coord).rgb;
 
 		shadowColor += shadow * color;
@@ -157,31 +137,31 @@ vec3 shadowSoft(
 }
 
 vec3 calculateShadows(
-	vec3 scenePos,
+	vec3 shadowViewPos,
 	vec3 normal,
-	float NoL,
-	float skylight,
-	float cloudShadow,
 	uint blockId,
-	out float sssDepth
+	float cloudShadow,
+	float skylight,
+	float NoL,
+	float dither,
+	float blockerDepth
 ) {
-	vec3 shadowViewPos = transform(shadowModelView, scenePos);
-	vec3 shadowClipPos = projectOrtho(shadowProjection, shadowViewPos);
+	//vec3 shadowViewPos = transform(shadowModelView, scenePos);
+//	vec3 shadowClipPos = ;
 
-	float distortionFactor = getShadowDistortionFactor(shadowClipPos.xy);
+	vec2 distortDiff = distortShadowPosDiff(shadowProjScale.xy * shadowViewPos.xy);
 
-	// gri573's method to prevent peter panning
-	// apply shadow bias away from the surface rather than in direction of the light
-	// Prevents peter panning, but can cause shadows to be shortened or misaligned on edges
-	float biasScale = 1.0 + 2.0 * pow5(max0(dot(normal, lightDir))); // Intended to fix the 'blob' of shadow acne that appears when the sun is near the horizon
-	vec3 shadowNormal = diagonal(shadowProjection).xyz * (mat3(shadowModelView) * normal);
-	shadowClipPos += SHADOW_BIAS * biasScale * sqr(distortionFactor) * shadowNormal;
+	float biasAmount = shadowDistance * rcp(min(distortDiff.x, distortDiff.y) * float(shadowMapResolution));
+ 	vec3 shadowClipPos = shadowProjScale * (shadowViewPos + mat3(shadowModelView) * normal * (SHADOW_BIAS + biasAmount));
 
-	vec3 shadowScreenPos = distortShadowSpace(shadowClipPos, distortionFactor) * 0.5 + 0.5;
+	vec3 shadowScreenPos = vec3(distortShadowPos(shadowClipPos.xy), shadowClipPos.z) * 0.5 + 0.5;
 
 	// fake, lightmap-based shadows for outside of the shadow distance
-	float distantShadow   = lightmapShadows(skylight, NoL, sssDepth);
-	float distantSssDepth = sssDepth;
+
+	float s = 0.0;
+
+	float distantShadow   = lightmapShadows(skylight, NoL, s);
+	float distantSssDepth = s;
 	if (clamp01(shadowScreenPos) != shadowScreenPos) return vec3(distantShadow);
 
 	// fade into distant shadows in the distance
@@ -205,30 +185,23 @@ vec3 calculateShadows(
 		return shadowSimple(shadowScreenPos) * distantShadow;
 	}
 #elif SHADOW_QUALITY == SHADOW_QUALITY_FANCY
-	float dither = interleavedGradientNoise(gl_FragCoord.xy, frameCounter);
+	//float dither = interleavedGradientNoise(gl_FragCoord.xy, frameCounter);
 
-#if defined PROGRAM_DEFERRED_LIGHTING
-	vec2 penumbraMask = texelFetch(colortex7, ivec2(gl_FragCoord.xy), 0).xy;
+//	float blockerDepth = blockerSearch(shadowScreenPos, shadowClipPos, dither);
 
-	float blockerDepth = penumbraMask.x;
-	sssDepth           = penumbraMask.y;
-#else
-	float blockerDepth = blockerSearch(shadowtex0, shadowScreenPos, shadowClipPos, dither, sssDepth);
-#endif
+	//sssDepth = blockerDepth;
 
 	// fade into lightmap-based SSS in the distance
-	sssDepth = mix(sssDepth, distantSssDepth, distanceFade);
+	//sssDepth = mix(sssDepth, distantSssDepth, distanceFade);
 
 	if (NoL < eps) return vec3(0.0);
 	if (blockerDepth < eps) return vec3(distantShadow); // blocker search empty handed => no occlusion
 
-	float penumbraRadius = blockerDepthToPenumbraRadius(shadowScreenPos.z, blockerDepth, cloudShadow);
-
 	return shadowSoft(
 		shadowScreenPos,
 		shadowClipPos,
-		penumbraRadius,
-		distortionFactor,
+		SHADOW_PENUMBRA_SCALE * 0.02 * blockerDepth,
+		biasAmount,
 		dither
 	) * distantShadow;
 #endif

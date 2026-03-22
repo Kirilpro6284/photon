@@ -76,7 +76,7 @@ uniform float worldAge;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 uniform vec3 sunDir;
 uniform vec3 moonDir;
 
@@ -103,5 +103,5 @@ void main() {
 	vec3 rayOrigin = unprojectCloudShadowmap(coord);
 	     rayOrigin = vec3(rayOrigin.xz, rayOrigin.y + eyeAltitude - SEA_LEVEL).xzy * CLOUDS_SCALE + vec3(0.0, planetRadius, 0.0);
 
-	cloudShadow = getCloudShadows(rayOrigin, lightDir);
+	cloudShadow = getCloudShadows(rayOrigin, shadowDir);
 }

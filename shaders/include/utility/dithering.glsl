@@ -11,12 +11,12 @@ float bayer8 (vec2 a) { return 0.25 * bayer4 (0.5 * a) + bayer2(a); }
 float bayer16(vec2 a) { return 0.25 * bayer8 (0.5 * a) + bayer2(a); }
 float bayer32(vec2 a) { return 0.25 * bayer16(0.5 * a) + bayer2(a); }
 
-float interleavedGradientNoise(vec2 pos) {
+float getInterleavedGradientNoise(vec2 pos) {
 	return fract(52.9829189 * fract(0.06711056 * pos.x + (0.00583715 * pos.y)));
 }
 
-float interleavedGradientNoise(vec2 pos, int t) {
-	return interleavedGradientNoise(pos + 5.588238 * (t & 63));
+float getInterleavedGradientNoise(vec2 pos, int t) {
+	return getInterleavedGradientNoise(pos + 5.588238 * (t & 63));
 }
 
 float dither8Bit(float x, float pattern) {

@@ -45,7 +45,7 @@ uniform bool worldAgeChanged;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -123,7 +123,7 @@ void main() {
 	if (depth == 1.0 || clamp01(coord) != coord) { data = vec4(0.0); return; }
 
 	vec3 screenPos = vec3(coord, depth);
-	vec3 viewPos = screenToViewSpace(screenPos, true);
+	vec3 viewPos = screenToViewPos(coord, depth);
 
 	//--// Spatial reconstruction
 

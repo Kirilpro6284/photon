@@ -12,8 +12,8 @@ void paletteSetup() {
 
 	// Sunlight/moonlight
 	directIrradiance  = sunAngle < 0.5 ? sunIrradiance : moonIrradiance * moonPhaseBrightness;
-	directIrradiance *= getAtmosphereTransmittance(lightDir.y, planetRadius);
-	directIrradiance *= clamp01(rcp(0.02) * lightDir.y); // fade away during day/night transition
+	directIrradiance *= getAtmosphereTransmittance(shadowDir.y, planetRadius);
+	directIrradiance *= clamp01(rcp(0.02) * shadowDir.y); // fade away during day/night transition
 
 	// Skylight
 	const vec3 up = vec3(0.0, 1.0, 0.0);

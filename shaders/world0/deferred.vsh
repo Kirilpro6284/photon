@@ -55,7 +55,7 @@ uniform float timeMidnight;
 
 uniform float moonPhaseBrightness;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 uniform vec3 sunDir;
 uniform vec3 moonDir;
 

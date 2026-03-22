@@ -34,7 +34,7 @@ uniform float timeNoon;
 uniform float timeSunrise;
 uniform float timeMidnight;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 
 //--// Includes //------------------------------------------------------------//
 

@@ -41,7 +41,7 @@ uniform mat4 gbufferPreviousProjection;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 //--// Includes //------------------------------------------------------------//
 

@@ -19,6 +19,8 @@ uniform sampler2D noisetex;
 uniform sampler2D DEBUG_SAMPLER;
 #endif
 
+uniform sampler2D colortex4;
+
 uniform sampler2D colortex2; // Post-processing color
 
 //--// Camera uniforms
@@ -49,7 +51,7 @@ uniform float timeNoon;
 uniform float timeSunset;
 uniform float timeMidnight;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -195,4 +197,6 @@ void main() {
     if (abs(coord.y - displayVariable0) < 0.005) fragColor = vec3(1.0);
     if (abs(coord.y - displayVariable1) < 0.005) fragColor = vec3(0.0);
 #endif
+
+    //fragColor = 0.1 * texelFetch(colortex4, texel >> 2, 0).rgb;
 }

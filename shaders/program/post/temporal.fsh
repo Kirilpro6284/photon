@@ -61,7 +61,7 @@ uniform vec2 viewTexelSize;
 
 uniform vec2 windowSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -155,7 +155,7 @@ void main() {
 	float depth = texelFetch(depthtex0, srcTexel, 0).x;
 
 #ifdef TAA
-	vec2 adjustedCoord = clamp01(coord + 0.5 * taaOffset);
+	vec2 adjustedCoord = clamp01(coord + 0.5 * taa_offset);
 
 	vec3 closest = getClosestFragment(srcTexel, depth);
 	vec2 velocity = closest.xy - reproject(closest).xy;

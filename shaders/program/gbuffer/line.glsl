@@ -67,7 +67,7 @@ flat out vec3 tint;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 //--// Functions //-----------------------------------------------------------//
 
@@ -110,7 +110,7 @@ void main() {
 #endif
 
 #ifdef TAA
-    clipPos.xy += taaOffset * clipPos.w;
+    clipPos.xy += taa_offset * clipPos.w;
 	clipPos.xy  = clipPos.xy * renderScale + clipPos.w * (renderScale - 1.0);
 #endif
 

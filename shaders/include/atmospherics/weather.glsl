@@ -84,7 +84,7 @@ vec4 cloudsLayer0CloudType(vec3 weather) {
 // allow light to travel further through the cloud when the sun is close to the horizon
 float cloudsLayer0Density(vec3 weather) {
 	const float cloudsExtinctionCoeff = 0.115;
-	return (CLOUDS_LAYER0_DENSITY * cloudsExtinctionCoeff) * (0.5 + 0.5 * abs(lightDir.y));
+	return (CLOUDS_LAYER0_DENSITY * cloudsExtinctionCoeff) * (0.5 + 0.5 * abs(shadowDir.y));
 }
 
 // layer 1 (altocumulus, altostratus)

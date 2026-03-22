@@ -37,6 +37,8 @@ const mat3 d65ToD60 = mat3(
 	-0.0028413125,  0.0046851556,  0.9245066529
 );
 
+const vec3 ap1RgbY = vec3(0.2722287168, 0.6740817658, 0.0536895174);
+
 const mat3 ap0ToAp1 = ap0ToXyz * xyzToAp1;
 const mat3 ap1ToAp0 = ap1ToXyz * xyzToAp0;
 

@@ -36,17 +36,14 @@ vec3 decodeUnitVector(vec2 e) {
 
 // The following functions are from https://github.com/Jessie-LC/open-source-utility-code/blob/main/advanced/packing.glsl
 
-vec4 encodeRgbe8(vec3 rgb) {
-	float exponentPart = floor(log2(maxOf(vec4(rgb, exp2(-127.0)))));
-	vec3  mantissaPart = clamp((128.0 / 255.0) * exp2(-exponentPart) * rgb, 0.0, 1.0);
-	      exponentPart = clamp(exponentPart * (1.0 / 255.0) + (127.0 / 255.0), 0.0, 1.0);
+vec4 encodeRgbe8 (vec3 data) {
+	float exponent = ceil(log2(max(max(data.r, data.g), max(data.b, 1e-38))));
 
-    return vec4(mantissaPart, exponentPart);
+	return vec4(data * exp2(-exponent), rcp(255.0) * (exponent + 126.0));
 }
 
-vec3 decodeRgbe8(vec4 rgbe) {
-	const float add = log2(255.0 / 128.0) - 127.0;
-	return exp2(rgbe.a * 255.0 + add) * rgbe.rgb;
+vec3 decodeRgbe8 (vec4 data) {
+	return data.rgb * exp2(data.a * 255.0 - 126.0);
 }
 
 float packUnorm2x4(vec2 xy) {

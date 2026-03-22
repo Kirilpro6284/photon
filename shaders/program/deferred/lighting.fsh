@@ -34,12 +34,14 @@ uniform sampler2D colortex15; // Cloud shadow map
 
 uniform sampler2D depthtex1;
 
+uniform sampler2D shadowtex0;
+
 #ifdef SHADOW
 #ifdef SHADOW_COLOR
 uniform sampler2D shadowcolor0;
-uniform sampler2DShadow shadowtex0;
+uniform sampler2DShadow shadowtex0HW;
 #endif
-uniform sampler2DShadow shadowtex1;
+uniform sampler2DShadow shadowtex1HW;
 #endif
 
 //--// Camera uniforms
@@ -105,9 +107,9 @@ uniform float timeMidnight;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 uniform vec3 sunDir;
 uniform vec3 moonDir;
 
@@ -200,7 +202,7 @@ void main() {
 
 	if (depth < handDepth) depth += 0.38; // Hand lighting fix from Capt Tatsu
 
-	vec3 viewPos  = screenToViewSpace(vec3(coord, depth), true);
+	vec3 viewPos  = screenToViewPos(coord, depth);
 	vec3 scenePos = viewToSceneSpace(viewPos);
 	vec3 worldPos = scenePos + cameraPosition;
 
@@ -264,7 +266,8 @@ void main() {
 
 	/* -- lighting -- */
 
-	float sssDepth;
+	float dither = getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter);
+
 	radiance = getSceneLighting(
 		material,
 		scenePos,
@@ -279,9 +282,9 @@ void main() {
 		skyIrradiance,
 #endif
 		lmCoord,
+		dither,
 		1.0,
-		blockId,
-		sssDepth
+		blockId
 	);
 
 	/* -- reflections -- */

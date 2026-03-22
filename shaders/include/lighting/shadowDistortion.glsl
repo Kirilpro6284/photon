@@ -3,29 +3,19 @@
 
 #include "/include/utility/fastMath.glsl"
 
-// Euclidian distance is defined as sqrt(a^2 + b^2 + ...). This function instead does
-// quarticRoot(a^4 + b^4 + ...). This results in smaller distances along the diagonal axes
-float quarticLength(vec2 v) {
-	return sqrt(sqrt(pow4(v.x) + pow4(v.y)));
+// https://discord.com/channels/237199950235041794/525510804494221312/1379718853872848896
+
+#define SHADOW_MAP_BIAS 3.6
+const float c = exp(SHADOW_MAP_BIAS) - 1.0;
+
+vec2 distortShadowPos (vec2 pos) 
+{
+	return sign(pos) * log2(c * abs(pos) + 1.0) / log2(c + 1.0);
 }
 
-float getShadowDistortionFactor(vec2 shadowClipPos) {
-	return quarticLength(shadowClipPos) * SHADOW_DISTORTION + (1.0 - SHADOW_DISTORTION);
-}
-
-vec3 distortShadowSpace(vec3 shadowClipPos, float distortionFactor) {
-	return shadowClipPos * vec3(vec2(rcp(distortionFactor)), SHADOW_DEPTH_SCALE);
-}
-
-vec3 distortShadowSpace(vec3 shadowClipPos) {
-	float distortionFactor = getShadowDistortionFactor(shadowClipPos.xy);
-	return distortShadowSpace(shadowClipPos, distortionFactor);
-}
-
-vec3 undistortShadowSpace(vec3 shadowClipPos) {
-	shadowClipPos.xy *= (1.0 - SHADOW_DISTORTION) / (1.0 - quarticLength(shadowClipPos.xy));
-	shadowClipPos.z  *= rcp(SHADOW_DEPTH_SCALE);
-	return shadowClipPos;
+vec2 distortShadowPosDiff (vec2 pos) 
+{
+	return c / ((c * abs(pos) + 1.0) * log(c + 1.0));
 }
 
 #endif // INCLUDE_LIGHTING_SHADOWDISTORTION

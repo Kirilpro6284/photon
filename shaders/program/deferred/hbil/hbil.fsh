@@ -53,7 +53,7 @@ uniform int frameCounter;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 uniform bool worldAgeChanged;
 
@@ -122,7 +122,7 @@ vec4 horizonSearch(
 
 		if (depth == screenPos.z || depth == 1.0 || depth < handDepth) continue;
 
-		vec3 offset = screenToViewSpace(vec3(ditheredPos, depth), true) - viewPos;
+		vec3 offset = screenToViewPos(ditheredPos, depth) - viewPos;
 
 		float lenSq = lengthSquared(offset);
 		float cosTheta = dot(viewerDir, offset) * inversesqrt(lenSq);
@@ -231,7 +231,7 @@ void main() {
 	/* -- transformations  -- */
 
 	vec3 screenPos = vec3(coord, depth);
-	vec3 viewPos = screenToViewSpace(screenPos, true);
+	vec3 viewPos = screenToViewPos(coord, depth);
 	vec3 viewerDir = normalize(viewPos);
 
 	/* -- unpack gbuffer  -- */

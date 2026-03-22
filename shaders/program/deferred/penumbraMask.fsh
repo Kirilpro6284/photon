@@ -21,7 +21,7 @@ uniform sampler2D noisetex;
 uniform sampler2D depthtex1;
 
 uniform sampler2D shadowtex0;
-uniform sampler2DShadow shadowtex1;
+uniform sampler2DShadow shadowtex1HW;
 
 //--// Camera uniforms
 
@@ -53,9 +53,9 @@ uniform int frameCounter;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -83,7 +83,7 @@ void main() {
 
 	/* -- transformations -- */
 
-	vec3 viewPos         = screenToViewSpace(vec3(coord, depth), true);
+	vec3 viewPos         = screenToViewPos(coord, depth);
 	vec3 scenePos        = viewToSceneSpace(viewPos);
 	vec3 shadowViewPos   = transform(shadowModelView, scenePos);
 	vec3 shadowClipPos   = projectOrtho(shadowProjection, shadowViewPos);

@@ -87,7 +87,7 @@ uniform float moonPhaseBrightness;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 uniform vec3 sunDir;
 uniform vec3 moonDir;
@@ -127,7 +127,7 @@ vec3 reprojectClouds(vec2 coord, float distanceToCloud) {
 	const float windSpeed = CLOUDS_LAYER0_WIND_SPEED / CLOUDS_SCALE;
 	const float windAngle = CLOUDS_LAYER0_WIND_ANGLE * tau / 360.0;
 
-	vec3 pos = screenToViewSpace(vec3(coord, 1.0), false);
+	vec3 pos = projectAndDivide(gbufferProjectionInverse, vec3(coord, 1.0) * 2.0 - 1.0);
 	     pos = mat3(gbufferModelViewInverse) * pos;
 	     pos = normalize(pos) * distanceToCloud * rcp(CLOUDS_SCALE);
 
@@ -261,7 +261,7 @@ void main() {
 	float depth = texelFetch(depthtex1, texel, 0).x;
 
 	vec3 positionScreen = vec3(coord, 1.0);
-	vec3 positionView = screenToViewSpace(positionScreen, true);
+	vec3 positionView = screenToViewPos(coord, 1.0);
 	vec3 rayDir = mat3(gbufferModelViewInverse) * normalize(positionView);
 
 	vec4 cloudData = upscaleClouds(texel, vec3(coord, depth));

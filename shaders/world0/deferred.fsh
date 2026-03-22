@@ -77,7 +77,7 @@ uniform float timeMidnight;
 uniform float lightningFlash;
 uniform float moonPhaseBrightness;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 uniform vec3 sunDir;
 uniform vec3 moonDir;
 
@@ -130,7 +130,7 @@ void main() {
 
 		/* -- clouds -- */
 
-		vec3 rayOrigin = vec3(0.0, CLOUDS_SCALE * (eyeAltitude - SEA_LEVEL) + planetRadius, 0.0) + CLOUDS_SCALE;
+		vec3 rayOrigin = vec3(0.0, CLOUDS_SCALE * 16.0 + planetRadius, 0.0) + CLOUDS_SCALE;
 
 		vec3 cloudsLightDir = cloudsMoonlit ? moonDir : sunDir;
 

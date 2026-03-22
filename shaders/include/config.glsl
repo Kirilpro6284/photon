@@ -109,7 +109,7 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
 
 //--// Fog
 
-  #define FOG_RENDER_SCALE 70
+  #define FOG_RENDER_SCALE 50
 
   #define AIR_FOG_VL
   #define AIR_FOG_DENSITY 1.0 // []
@@ -203,9 +203,10 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
   #define SHADOW_PCF_STEPS_INCREASE 1.0 // [0.0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0]
   #define SHADOW_BLOCKER_SEARCH_STEPS 6 // [3 6 9 12 15]
   #define SHADOW_BLOCKER_SEARCH_RADIUS 0.5 // [0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
-  #define SHADOW_BIAS 1.3 // [0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0]
+  #define SHADOW_MAX_BLOCKER_DEPTH 25.0
+  #define SHADOW_BIAS 0.03
   #define SHADOW_DEPTH_SCALE 0.2
-  #define SHADOW_DISTORTION 0.85
+  #define SHADOW_SMOOTHING 2.5
 
 //--// Post-Processing //-----------------------------------------------------//
 

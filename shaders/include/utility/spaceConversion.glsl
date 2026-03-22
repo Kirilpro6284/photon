@@ -10,21 +10,17 @@ float reverseLinearDepth(float linearZ) {
 	return (far + near) / (far - near) + (2.0 * far * near) / (linearZ * (far - near));
 }
 
-vec3 screenToViewSpace(vec3 screenPos, bool handleJitter) {
-	vec3 positionNdc = 2.0 * screenPos - 1.0;
+vec3 screenToViewPos (vec2 uv, float depth) {
+	vec3 ndc = vec3(uv, depth) * 2.0 - 1.0;
 
-#ifdef TAA
-	if (handleJitter) positionNdc.xy -= taaOffset;
-#endif
-
-	return projectAndDivide(gbufferProjectionInverse, positionNdc);
+	return projectAndDivide(gbufferProjectionInverse, vec3(ndc.xy - taa_offset, ndc.z));
 }
 
 vec3 viewToScreenSpace(vec3 viewPos, bool handleJitter) {
 	vec3 positionNdc = projectAndDivide(gbufferProjection, viewPos);
 
 #ifdef TAA
-	if (handleJitter) positionNdc.xy += taaOffset;
+	if (handleJitter) positionNdc.xy += taa_offset;
 #endif
 
 	return positionNdc * 0.5 + 0.5;
@@ -57,7 +53,7 @@ vec3 reprojectSceneSpace(vec3 scenePos, bool isHand) {
 }
 
 vec3 reproject(vec3 screenPos) {
-	vec3 pos = screenToViewSpace(screenPos, false);
+	vec3 pos = projectAndDivide(gbufferProjectionInverse, screenPos * 2.0 - 1.0);
 	     pos = viewToSceneSpace(pos);
 
 	bool isHand = screenPos.z < handDepth;

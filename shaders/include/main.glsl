@@ -9,6 +9,11 @@
 
 #include "/include/config.glsl"
 
+#define rcp(x) (1.0 / (x))
+#define clamp01(x) clamp(x, 0.0, 1.0) // free on operation output
+#define max0(x) max(x, 0.0)
+#define min1(x) min(x, 1.0)
+
 //--// Constants //-----------------------------------------------------------//
 
 const float eps         = 1e-6;
@@ -23,6 +28,11 @@ const float goldenAngle = tau / goldenRatio / goldenRatio;
 const float renderScale = inversesqrt(float(TAA_UPSCALING_FACTOR));
 const float handDepth   = 0.56;
 
+const float shadowDepthDist = 256.0;
+
+const vec3 shadowProjScale = vec3(rcp(shadowDistance), rcp(shadowDistance), -rcp(shadowDepthDist));
+const vec3 shadowProjScaleInv = vec3(shadowDistance, shadowDistance, -shadowDepthDist);
+
 #if TAA_UPSCALING_FACTOR == 1
 	#define taauRenderScale 1.0
 #elif TAA_UPSCALING_FACTOR == 2
@@ -32,11 +42,6 @@ const float handDepth   = 0.56;
 #endif
 
 //--// Functions //-----------------------------------------------------------//
-
-#define rcp(x) (1.0 / (x))
-#define clamp01(x) clamp(x, 0.0, 1.0) // free on operation output
-#define max0(x) max(x, 0.0)
-#define min1(x) min(x, 1.0)
 
 float sqr(float x) { return x * x; }
 vec2  sqr(vec2  v) { return v * v; }

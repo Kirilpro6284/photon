@@ -58,8 +58,6 @@ uniform mat4 gbufferProjectionInverse;
 
 uniform mat4 shadowModelView;
 uniform mat4 shadowModelViewInverse;
-uniform mat4 shadowProjection;
-uniform mat4 shadowProjectionInverse;
 
 //--// Time uniforms
 
@@ -85,9 +83,9 @@ uniform float lightningFlash;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -138,10 +136,10 @@ mat2x3 raymarchFog(vec3 worldStartPos, vec3 worldEndPos, bool isSky, float dithe
 	worldDir *= rcp(rayLength);
 
 	vec3 shadowStartPos = mat3(shadowModelView) * (worldStartPos - cameraPosition) + shadowModelView[3].xyz;
-	     shadowStartPos = diagonal(shadowProjection).xyz * shadowStartPos + shadowProjection[3].xyz;
+	     shadowStartPos = shadowProjScale * shadowStartPos;
 
 	vec3 shadowDir = mat3(shadowModelView) * worldDir;
-	     shadowDir = diagonal(shadowProjection).xyz * shadowDir;
+	     shadowDir = shadowProjScale * shadowDir;
 
 	const float lowerPlaneAltitude = -64.0;
 	const float upperPlaneAltitude = 320.0;
@@ -211,10 +209,10 @@ mat2x3 raymarchFog(vec3 worldStartPos, vec3 worldEndPos, bool isSky, float dithe
 	mat2x3 directScattering  = mat2x3(0.0);
 
 	for (int i = 0; i < stepCount; ++i, worldPos += worldStep, shadowPos += shadowStep) {
-		vec3 shadowScreenPos = distortShadowSpace(shadowPos) * 0.5 + 0.5;
+		vec3 shadowScreenPos = vec3(distortShadowPos(shadowPos.xy), shadowPos.z) * 0.5 + 0.5;
 
 #ifdef SHADOW
-		float shadowDepth = texelFetch(shadowtex1, ivec2(shadowScreenPos.xy * shadowMapResolution * MC_SHADOW_QUALITY), 0).x;
+		float shadowDepth = texelFetch(shadowtex1, ivec2(shadowScreenPos.xy * shadowMapResolution), 0).x;
 		float shadow = step(float(clamp01(shadowScreenPos) == shadowScreenPos) * shadowScreenPos.z, shadowDepth);
 #else
 		float shadow = 1.0;
@@ -247,7 +245,7 @@ mat2x3 raymarchFog(vec3 worldStartPos, vec3 worldEndPos, bool isSky, float dithe
 	ambientScattering[0] *= scatteringCoeff[0] * eyeSkylight;
 	ambientScattering[1] *= scatteringCoeff[1] * eyeSkylight;
 
-	float LoV = dot(worldDir, lightDir);
+	float LoV = dot(worldDir, shadowDir);
 
 	vec2 phase;
 	phase.x = rayleighPhase(LoV).x;
@@ -282,7 +280,7 @@ void main() {
 
 	float depth = texelFetch(depthtex0, viewTexel, 0).x;
 
-	vec3 viewPos  = screenToViewSpace(vec3(coord * rcp(fogRenderScale), depth), true);
+	vec3 viewPos  = screenToViewPos(coord * rcp(fogRenderScale), depth);
 	vec3 scenePos = viewToSceneSpace(viewPos);
 	vec3 worldPos = scenePos + cameraPosition;
 
@@ -312,7 +310,7 @@ void main() {
 			skyIrradiance,
 			vec3(0.0),
 			viewerDistance,
-			dot(lightDir, -rayDir),
+			dot(shadowDir, -rayDir),
 			15.0 - 15.0 * eyeSkylight,
 			eyeSkylight,
 			1.0

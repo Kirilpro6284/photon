@@ -37,6 +37,8 @@ uniform vec4 entityColor;
 uniform int entityId;
 #endif
 
+uniform float alphaTestRef = 0.1;
+
 //--// Time uniforms
 
 uniform int frameCounter;
@@ -74,11 +76,6 @@ void main() {
 #endif
 
 	baseTex *= tint;
-#ifdef PROGRAM_GBUFFERS_ENTITIES
-	if (baseTex.a < 0.1 && entityId != ENTITY_BOAT && entityId != ENTITY_LIGHTNING_BOLT) discard;
-#else
-	if (baseTex.a < 0.1) discard;
-#endif
 
 #if defined PROGRAM_GBUFFERS_ENTITIES
 	baseTex.rgb = mix(baseTex.rgb, entityColor.rgb, entityColor.a);
@@ -92,7 +89,7 @@ void main() {
 	normal = tbnMatrix * normal;
 #endif
 
-	float dither = interleavedGradientNoise(gl_FragCoord.xy, frameCounter);
+	float dither = getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter);
 
 	mat2x4 data;
 	data[0].xyz = baseTex.rgb;
@@ -120,6 +117,12 @@ void main() {
 #if defined PROGRAM_GBUFFERS_BEACONBEAM
 	// Discard the translucent edge part of the beam
 	if (baseTex.a < 0.99) discard;
+#endif
+
+#ifdef PROGRAM_GBUFFERS_ENTITIES
+	if (baseTex.a < 0.1 && entityId != ENTITY_BOAT && entityId != ENTITY_LIGHTNING_BOLT) discard;
+#else
+	if (baseTex.a < alphaTestRef) discard;
 #endif
 }
 
@@ -166,7 +169,7 @@ uniform float rainStrength;
 
 //--// Custom uniforms
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -204,7 +207,7 @@ void main() {
 	vec4 clipPos = project(gl_ProjectionMatrix, viewPos);
 
 #ifdef TAA
-    clipPos.xy += taaOffset * clipPos.w;
+    clipPos.xy += taa_offset * clipPos.w;
 	clipPos.xy  = clipPos.xy * renderScale + clipPos.w * (renderScale - 1.0);
 #endif
 

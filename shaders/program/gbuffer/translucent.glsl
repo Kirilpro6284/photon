@@ -47,7 +47,7 @@ uniform sampler2D specular;
 
 #ifdef SHADOW
 uniform sampler2D shadowtex0;
-uniform sampler2DShadow shadowtex1;
+uniform sampler2DShadow shadowtex1HW;
 #endif
 
 //--// Camera uniforms
@@ -102,9 +102,9 @@ uniform float timeNoon;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 uniform vec3 sunDir;
 uniform vec3 moonDir;
 
@@ -242,8 +242,8 @@ void main() {
 		skyIrradiance,
 		lmCoord,
 		materialAo,
-		blockId,
-		sssDepth
+		getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter),
+		blockId
 	);
 
 	/* -- reflections -- */
@@ -338,7 +338,7 @@ uniform float rainStrength;
 
 //--// Custom uniforms
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -374,7 +374,7 @@ void main() {
 	vec4 clipPos  = project(gl_ProjectionMatrix, viewPos);
 
 #ifdef TAA
-    clipPos.xy += taaOffset * clipPos.w;
+    clipPos.xy += taa_offset * clipPos.w;
 	clipPos.xy  = clipPos.xy * renderScale + clipPos.w * (renderScale - 1.0);
 #endif
 

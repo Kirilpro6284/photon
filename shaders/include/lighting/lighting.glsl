@@ -44,11 +44,11 @@ float getFakeBouncedLight(vec3 bentNormal, float sssDepth, float ao) {
 	const float bounceBoost  = pi;
 	const float bounceMul    = bounceAlbedo * bounceBoost * rcpPi;
 
-	vec3 bounceDir = vec3(lightDir.xz, -lightDir.y).xzy;
+	vec3 bounceDir = vec3(shadowDir.xz, -shadowDir.y).xzy;
 	float bounce0 = clamp01(dot(bentNormal, bounceDir)) * (1.0 - exp2(-0.125 * sssDepth));
 	float bounce1 = 0.33 * ao * clamp01(0.5 - 0.5 * bentNormal.y);
 
-	return (bounceAlbedo * rcpPi) * (bounce0 + bounce1) * dampen(clamp01(lightDir.y + 0.15));
+	return (bounceAlbedo * rcpPi) * (bounce0 + bounce1) * dampen(clamp01(shadowDir.y + 0.15));
 }
 
 vec3 getSceneLighting(
@@ -65,9 +65,9 @@ vec3 getSceneLighting(
 	vec3 skyIrradiance,
 #endif
 	vec2 lmCoord,
+	float dither,
 	float ao,
-	uint blockId,
-	out float sssDepth
+	uint blockId
 ) {
 	ao = 1.0;
 	vec3 radiance = material.emission * emissionIntensity;
@@ -75,7 +75,7 @@ vec3 getSceneLighting(
 	// Sunlight/moonlight
 
 #if defined WORLD_OVERWORLD || defined WORLD_END
-	float NoL = dot(normal, lightDir) * step(0.0, dot(geometryNormal, lightDir));
+	float NoL = dot(normal, shadowDir) * step(0.0, dot(geometryNormal, shadowDir));
 
 #if defined WORLD_OVERWORLD && defined CLOUD_SHADOWS
 	float cloudShadow = getCloudShadows(colortex15, scenePos);
@@ -83,18 +83,24 @@ vec3 getSceneLighting(
 	float cloudShadow = 1.0;
 #endif
 
-	vec3 visibility = NoL * calculateShadows(scenePos, geometryNormal, NoL, lmCoord.y, cloudShadow, blockId, sssDepth);
+	vec3 shadowViewPos = transform(shadowModelView, scenePos);
+
+	//float dither = getInterleavedGradientNoise();
+
+	float blockerDepth = getBlockerDepth(shadowViewPos, dither);
+
+	vec3 visibility = NoL * calculateShadows(shadowViewPos, geometryNormal, blockId, cloudShadow, lmCoord.y, NoL, dither, blockerDepth);
 
 	if (maxOf(visibility) > eps || material.sssAmount > eps) {
 		float NoV = clamp01(dot(normal, viewerDir));
-		float LoV = dot(lightDir, viewerDir);
+		float LoV = dot(shadowDir, viewerDir);
 		float halfwayNorm = inversesqrt(2.0 * LoV + 2.0);
 		float NoH = (NoL + NoV) * halfwayNorm;
 		float LoH = LoV * halfwayNorm + halfwayNorm;
 
 		vec3 diffuse = diffuseHammon(material, NoL, NoV, NoH, LoV) * (1.0 - 0.75 * material.sssAmount);
 		vec3 specular = getSpecularHighlight(material, NoL, NoV, NoH, LoV, LoH);
-		vec3 subsurface = getSubsurfaceScattering(material.albedo, material.sssAmount, sssDepth, LoV);
+		vec3 subsurface = getSubsurfaceScattering(material.albedo, material.sssAmount, blockerDepth, LoV);
 
 		radiance += directIrradiance * ((diffuse + specular) * visibility + subsurface) * getCloudShadows(colortex15, scenePos);
 	}
@@ -119,7 +125,7 @@ vec3 getSceneLighting(
 	radiance += skyIrradiance * skylightFalloff * skylightBoost * bsdf;
 
 #if defined WORLD_OVERWORLD && defined FAKE_BOUNCED_SUNLIGHT && SHADOW_QUALITY == SHADOW_QUALITY_FANCY
-	radiance += getFakeBouncedLight(normal, sssDepth, ao) * directIrradiance * bsdf * (skylightFalloff * skylightFalloff * cloudShadow);
+	radiance += getFakeBouncedLight(normal, blockerDepth, ao) * directIrradiance * bsdf * (skylightFalloff * skylightFalloff * cloudShadow);
 #endif
 
 	// Ambient light

@@ -40,9 +40,9 @@ uniform float frameTimeCounter;
 
 //--// Custom uniforms
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 
 //--// Includes //-----------------------------------------------------------//
 
@@ -84,7 +84,7 @@ float getWaterCaustics() {
 	vec3 normal = tbnMatrix * getWaterNormal(normal, worldPos, flowDir);
 
 	vec3 oldPos = worldPos;
-	vec3 newPos = worldPos + refractSafe(lightDir, normal, airN / waterN) * distanceTraveled;
+	vec3 newPos = worldPos + refractSafe(shadowDir, normal, airN / waterN) * distanceTraveled;
 
 	float oldArea = lengthSquared(dFdx(oldPos)) * lengthSquared(dFdy(oldPos));
 	float newArea = lengthSquared(dFdx(newPos)) * lengthSquared(dFdy(newPos));

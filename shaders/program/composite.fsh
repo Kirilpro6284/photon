@@ -77,9 +77,9 @@ uniform float eyeSkylight;
 uniform vec2 viewSize;
 uniform vec2 viewTexelSize;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
-uniform vec3 lightDir;
+uniform vec3 shadowDir;
 uniform vec3 sunDir;
 uniform vec3 moonDir;
 
@@ -121,7 +121,7 @@ void main() {
 	/* -- transformations -- */
 
 	vec3 screenPos = vec3(coord, frontDepth);
-	vec3 viewPos   = screenToViewSpace(screenPos, true);
+	vec3 viewPos   = screenToViewPos(coord, frontDepth);
 	vec3 scenePos  = viewToSceneSpace(viewPos);
 
 	float viewerDistance = length(viewPos);
@@ -142,13 +142,13 @@ void main() {
 
 		radiance         = texture(colortex3, refractedCoord).rgb;
 		backDepth        = texture(depthtex1, refractedCoord * renderScale).x;
-		vec3 backPosView = screenToViewSpace(vec3(refractedCoord, backDepth), true);
+		vec3 backPosView = screenToViewPos(refractedCoord, backDepth);
 #endif
 
 		// water volume
 
 		float distanceThroughWater = max0(length(backPosView) - distanceToWater) * float(isEyeInWater != 1);
-		float LoV = dot(viewerDir, lightDir);
+		float LoV = dot(viewerDir, shadowDir);
 		float sssDepth = lightingInfo.x * 32.0;
 		float skylight = lightingInfo.y;
 		float cloudShadow = getCloudShadows(colortex15, scenePos);

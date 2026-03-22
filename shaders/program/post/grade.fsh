@@ -51,7 +51,7 @@ uniform float wetness;
 
 uniform float eyeSkylight;
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 uniform vec2 viewSize;
 uniform vec2 windowSize;
@@ -140,7 +140,7 @@ float getBloomyFog(float linearZ) {
 #endif
 
 	float depth = reverseLinearDepth(linearZ);
-	float viewerDistance = length(screenToViewSpace(vec3(coord, depth), false));
+	float viewerDistance = length(projectAndDivide(gbufferProjectionInverse, vec3(coord, depth) * 2.0 - 1.0));
 
 	float fogAmount = bloomyFogStrength * BLOOMY_FOG_INTENSITY * (1.0 - exp(-bloomyFogDensity * viewerDistance));
 

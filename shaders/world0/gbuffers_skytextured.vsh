@@ -11,7 +11,7 @@ flat out vec3 tint;
 
 //--// Custom uniforms
 
-uniform vec2 taaOffset;
+uniform vec2 taa_offset;
 
 //--// Functions //-----------------------------------------------------------//
 
@@ -23,7 +23,7 @@ void main() {
 	vec4 clipPos = project(gl_ProjectionMatrix, viewPos);
 
 #ifdef TAA
-    clipPos.xy += taaOffset * clipPos.w;
+    clipPos.xy += taa_offset * clipPos.w;
 	clipPos.xy  = clipPos.xy * renderScale + clipPos.w * (renderScale - 1.0);
 #endif
 

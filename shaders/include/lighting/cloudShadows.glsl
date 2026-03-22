@@ -34,7 +34,7 @@ float getCloudShadows(sampler2D cloudShadowmap, vec3 scenePos) {
 	// - the sun is near the horizon
 	float altitudeFraction = (scenePos.y + eyeAltitude - SEA_LEVEL) * (CLOUDS_SCALE / CLOUDS_LAYER0_THICKNESS) - CLOUDS_LAYER0_ALTITUDE;
 	float cloudShadowFade  = smoothstep(0.0, 0.7, 1.0 - altitudeFraction);
-	      cloudShadowFade *= smoothstep(0.1, 0.2, lightDir.y);
+	      cloudShadowFade *= smoothstep(0.1, 0.2, shadowDir.y);
 
 	float cloudShadow = texture(cloudShadowmap, cloudShadowPos).x;
 	      cloudShadow = mix(1.0, cloudShadow, cloudShadowFade);
