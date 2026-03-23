@@ -21,6 +21,10 @@ uniform sampler2D DEBUG_SAMPLER;
 
 uniform sampler2D skyCapture;
 
+uniform sampler2D colortex9;
+uniform sampler2D colortex16;
+uniform sampler2D colortex17;
+
 uniform usampler2D colortex1;
 uniform sampler2D colortex0; // Post-processing color
 
@@ -177,5 +181,5 @@ void main() {
 
     uvec4 encoded = texelFetch(colortex1, texel, 0);
 
-    //fragColor = vec3(pow(texelFetch(lodDepthTex0, texel, 0).r, 0.05));
+  //  fragColor = texelFetch(colortex16, texel, 0).rgb;
 }

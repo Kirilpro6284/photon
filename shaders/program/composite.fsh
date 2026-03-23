@@ -23,6 +23,10 @@ uniform sampler2D colortex7;  // Sky color
 uniform sampler2D colortex9;  // Water mask
 uniform sampler2D colortex2; // Clouds
 uniform sampler2D colortex15; // Cloud shadow map
+uniform sampler2D colortex16; // Voxy translucents
+uniform sampler2D colortex17; // Voxy water mask
+
+uniform sampler2D depthtex0;
 
 uniform sampler2D lodDepthTex0;
 uniform sampler2D lodDepthTex1;
@@ -51,10 +55,19 @@ void main() {
 	float backDepth   = texelFetch(lodDepthTex1,  texel, 0).x;
 	float frontDepth  = max(backDepth, texelFetch(lodDepthTex0,  texel, 0).x);
 	radiance          = texelFetch(colortex3,  texel, 0).rgb;
-	vec4 translucents = texelFetch(colortex0,  texel, 0);
-	vec4 waterMask    = texelFetch(colortex9,  texel, 0);
 	vec3 clearSky     = texelFetch(colortex7,  texel, 0).rgb;
 	vec4 clouds       = texelFetch(colortex2, texel, 0);
+
+	vec4 translucents;
+	vec4 waterMask;
+
+	if (texelFetch(depthtex0, texel, 0).r == 1.0) {
+		translucents = texelFetch(colortex16,  texel, 0);
+	 	waterMask    = texelFetch(colortex17,  texel, 0);
+	} else {
+	 	translucents = texelFetch(colortex0,  texel, 0);
+	 	waterMask    = texelFetch(colortex9,  texel, 0);
+	}
 
 	/* -- fetch lighting palette -- */
 

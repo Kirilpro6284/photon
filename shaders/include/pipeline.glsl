@@ -15,6 +15,8 @@
 13 | rgba16f | TAA render scale  | previous frame depth, previous frame light levels
 14 | r32f    | fullscreen        | temporally stable depth buffer
 15 | rgb11f  | 960x1080          | reprojected scene history for HBIL, cloud shadow map, bloom buffer
+16 | rgba16f | fullscreen        | voxy translucents
+17 | rgba16  | fullscreen        | voxy water mask
 
 const int colortex0Format  = RGBA16F;
 const int colortex2Format  = RGBA16F;
@@ -31,6 +33,8 @@ const int colortex12Format = R32F;
 const int colortex13Format = RGBA16F;
 const int colortex14Format = R32F;
 const int colortex15Format = R11F_G11F_B10F;
+const int colortex16Format = RGBA16F;
+const int colortex17Format = RGBA16;
 
 const int shadowcolor0Format = R11F_G11F_B10F;
 
@@ -50,6 +54,8 @@ const bool colortex12Clear = true;
 const bool colortex13Clear = false;
 const bool colortex14Clear = false;
 const bool colortex15Clear = false;
+const bool colortex16Clear = true;
+const bool colortex17Clear = true;
 
 const vec4 colortex0ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
 const vec4 colortex9ClearColor = vec4(0.0, 0.0, 0.0, 0.0);

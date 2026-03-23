@@ -222,7 +222,7 @@ void main() {
 	/* -- reflections -- */
 
 #ifdef SSR
-	mat3 tbnMatrix = getTbnMatrix(geometryNormal);
+	mat3 tbnMatrix = tbnNormal(geometryNormal);
 
 	vec3 viewerDirTangent = viewerDir * tbnMatrix;
 

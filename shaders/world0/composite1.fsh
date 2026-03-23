@@ -113,7 +113,7 @@ mat2x3 raymarchFog(vec3 worldStartPos, vec3 worldEndPos, bool isSky, float dithe
 	if (distanceToVolumeEnd < 0.0) return mat2x3(vec3(0.0), vec3(1.0)); // Did not intersect volume
 
 	rayLength = isSky ? distanceToVolumeEnd : rayLength;
-	rayLength = clamp(rayLength - distanceToVolumeStart, 0.0, min(renderDistance, 1024.0));
+	rayLength = clamp(rayLength - distanceToVolumeStart, 0.0, min(renderDistance, 2048.0));
 
 	uint stepCount = uint(float(fogMinStepCount) + fogStepCountGrowth * rayLength);
 	     stepCount = clamp(stepCount, fogMinStepCount, fogMaxStepCount);

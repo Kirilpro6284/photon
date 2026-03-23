@@ -59,13 +59,13 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 
 	uint blockId = parameters.customId - 10000u;
 
-	vec4 viewPos = vxProjInv * vec4(coord, gl_FragCoord.z * 2.0 - 1.0, 1.0);
+	vec4 viewPos = vxProjInv * vec4(coord * 2.0 - 1.0 - taa_offset, gl_FragCoord.z * 2.0 - 1.0, 1.0);
 
-    viewPos.z /= viewPos.w;
+    viewPos.xyz /= viewPos.w;
 
     fragDepth = vec4((lodProjMat_2.z * viewPos.z + lodProjMat_3.z) / (lodProjMat_2.w * viewPos.z) * -0.5, 0.0, 0.0, 1.0);
 
-	vec3 scenePos = viewToSceneSpace(viewPos.xyz);
+	vec3 scenePos = transform(gbufferModelViewInverse, viewPos.xyz);
 
     /* -- fetch lighting palette -- */
 
@@ -83,9 +83,12 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 
     vec3 flatNormal = vec3(uint((parameters.face>>1)==2), uint((parameters.face>>1)==0), uint((parameters.face>>1)==1)) * (float(int(parameters.face)&1)*2-1);
 
-    mat3 tbnMatrix = getTbnMatrix(flatNormal);
+    mat3 tbnMatrix = tbnNormal(flatNormal);
+	
+	float viewerDistance = length(viewPos.xyz);
 
-	vec3 viewerDirTangent = normalize(gbufferModelViewInverse[3].xyz - scenePos) * tbnMatrix;
+	vec3 viewerDir = (gbufferModelViewInverse[3].xyz - scenePos) * rcp(viewerDistance);
+	vec3 viewerDirTangent = normalize(viewerDir) * tbnMatrix;
 
 	if (blockId == BLOCK_WATER) {
 		material.albedo           = vec3(0.0);
@@ -110,11 +113,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 
 		bool isStill = abs(flatNormal.y) > 0.99;
 		vec2 flowDir = isStill ? vec2(0.0) : normalize(flatNormal.xz);
-
-#ifdef WATER_PARALLAX
-		worldPos.xz = waterParallax(normalize(viewerDirTangent), worldPos.xz, flowDir);
-#endif
-
+		
 		normalTangent = getWaterNormal(flatNormal, worldPos, flowDir);
 	} else {
 		if (baseTex.a < 0.1) discard;
@@ -137,10 +136,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 		}
 	}
 
-	float viewerDistance = length(viewPos.xyz);
-
 	vec3 normal = tbnMatrix * normalTangent;
-	vec3 viewerDir = (gbufferModelViewInverse[3].xyz - scenePos) * rcp(viewerDistance);
 
 	/* -- lighting -- */
 
@@ -154,7 +150,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 		directIrradiance,
 		ambientIrradiance,
 		skyIrradiance,
-		parameters.lightMap,
+		parameters.lightMap * 32.0 / 31.0,
 		materialAo,
 		getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter),
 		blockId
@@ -163,7 +159,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 	/* -- reflections -- */
 
 #if defined SSR
-	fragColor.rgb += getSpecularReflections(
+	fragColor.rgb = getSpecularReflections(
 		material,
 		tbnMatrix,
 		vec3(coord, fragDepth.r),
@@ -171,13 +167,13 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 		normal,
 		viewerDir,
 		viewerDirTangent,
-		parameters.lightMap.y
+		parameters.lightMap.y * 32.0 / 31.0
 	);
 #endif
 
     /* -- fog -- */
 
-	vec3 clearSky = texelFetch(colortex7, ivec2(gl_FragCoord.xy), 0).rgb;
+	vec3 clearSky = vec3(1.0);
 	fragColor.rgb = applyFog(fragColor.rgb, scenePos, clearSky);
 
 	/* -- set water mask -- */
@@ -199,4 +195,6 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 	} else {
 		waterMask = vec4(0.0);
 	}
+
+	fragColor.rgb *= rcp(fragColor.a);
 }

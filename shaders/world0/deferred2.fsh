@@ -114,13 +114,13 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	const vec4 currentScale = vec4(1e2, 1e2, 1.0, 1e6);
 
 	ivec2 srcTexel = ivec2(dstTexel * cloudsRenderScale);
-
+/*
 	// Fetch 3x3 neighborhood
 	vec4 a = texelFetch(colortex5, srcTexel + ivec2(-1, -1), 0);
 	vec4 b = texelFetch(colortex5, srcTexel + ivec2( 0, -1), 0);
 	vec4 c = texelFetch(colortex5, srcTexel + ivec2( 1, -1), 0);
 	vec4 d = texelFetch(colortex5, srcTexel + ivec2(-1,  0), 0);
-	vec4 e = texelFetch(colortex5, srcTexel, 0);
+	
 	vec4 f = texelFetch(colortex5, srcTexel + ivec2( 1,  0), 0);
 	vec4 g = texelFetch(colortex5, srcTexel + ivec2(-1,  1), 0);
 	vec4 h = texelFetch(colortex5, srcTexel + ivec2( 0,  1), 0);
@@ -137,6 +137,23 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	vec4 aabbMax  = maxOf(b, d, e, f, h);
 	     aabbMax += maxOf(aabbMax, a, c, g, i);
 	     aabbMax *= 0.5 * currentScale;
+*/
+
+	vec4 e = texelFetch(colortex5, srcTexel, 0);
+
+	vec4 aabbMin = vec4(1.0); vec4 aabbMax = vec4(0.0);
+
+	for (int x = -2; x <= 2; x++) {
+		for (int y = -2; y <= 2; y++) {
+			vec4 sampleData = texelFetch(colortex5, srcTexel + ivec2(x, y), 0);
+
+			aabbMin = min(aabbMin, sampleData);
+			aabbMax = max(aabbMax, sampleData);
+		}
+	}
+
+	aabbMin *= currentScale;
+	aabbMax *= currentScale;
 
 	vec2 previousCoord = reprojectClouds(coord, e.w * 1e6).xy;
 	vec2 previousCoordClamped = clamp(previousCoord.xy, vec2(0.0), 1.0 - 2.0 * viewTexelSize); // Prevent line at edge of screen

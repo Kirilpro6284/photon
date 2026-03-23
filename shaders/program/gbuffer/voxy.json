@@ -58,5 +58,5 @@
   "useViewportDims": true,
   "excludeLodsFromVanillaDepth": true,
   "opaqueDrawBuffers": [1,12],
-  "translucentDrawBuffers": [0,9,11]
+  "translucentDrawBuffers": [16,17,11]
 }
