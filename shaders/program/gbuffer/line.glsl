@@ -13,10 +13,6 @@ in vec2 lmCoord;
 
 flat in vec3 tint;
 
-//--// Uniforms //------------------------------------------------------------//
-
-uniform vec2 viewTexelSize;
-
 //--// Includes //------------------------------------------------------------//
 
 #include "/include/utility/encoding.glsl"
@@ -61,13 +57,6 @@ void main() {
 out vec2 lmCoord;
 
 flat out vec3 tint;
-
-//--// Uniforms //------------------------------------------------------------//
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
 
 //--// Functions //-----------------------------------------------------------//
 

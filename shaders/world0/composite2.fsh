@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 
 /*
  * Program description
@@ -6,6 +6,7 @@
  */
 
 #include "/include/main.glsl"
+#include "/include/utility/textureSampling.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
@@ -19,8 +20,8 @@ in vec2 coord;
 //--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D colortex3; // Scene radiance
-uniform sampler2D colortex6; // Fog scattering
-uniform sampler2D colortex7; // Fog transmittance
+uniform sampler2D colortex6; // Fog transmittance
+uniform sampler2D colortex7; // Fog scattering
 
 //--// Functions //-----------------------------------------------------------//
 
@@ -29,8 +30,8 @@ const float fogRenderScale = 0.01 * FOG_RENDER_SCALE;
 void main() {
 	ivec2 texel = ivec2(gl_FragCoord.xy);
 
-	vec3 fogScattering    = textureSmooth(colortex6, coord * fogRenderScale).rgb;
-	vec3 fogTransmittance = textureSmooth(colortex7, coord * fogRenderScale).rgb;
+	vec3 fogScattering = textureSmooth(colortex7, coord * fogRenderScale, viewSize).rgb;
+	vec3 fogTransmittance = textureSmooth(colortex6, coord * fogRenderScale, viewSize).rgb;
 
 	radiance = texelFetch(colortex3, texel, 0).rgb;
 	radiance = radiance * fogTransmittance + fogScattering;

@@ -5,7 +5,7 @@ const ivec2 cloudShadowRes = ivec2(256);
 const float cloudShadowIntensity = 0.85;
 
 vec2 projectCloudShadowmap(vec3 scenePos) {
-	vec2 cloudShadowPos  = transform(shadowModelView, scenePos).xy / far;
+	vec2 cloudShadowPos  = transform(shadowModelView, scenePos).xy / renderDistance;
 	     cloudShadowPos /= 1.0 + length(cloudShadowPos);
 		 cloudShadowPos  = cloudShadowPos * 0.5 + 0.5;
 
@@ -16,7 +16,7 @@ vec3 unprojectCloudShadowmap(vec2 cloudShadowPos) {
 	cloudShadowPos  = cloudShadowPos * 2.0 - 1.0;
 	cloudShadowPos /= 1.0 - length(cloudShadowPos);
 
-	vec3 shadowViewPos = vec3(cloudShadowPos * far, 1.0);
+	vec3 shadowViewPos = vec3(cloudShadowPos * renderDistance, 1.0);
 
 	return transform(shadowModelViewInverse, shadowViewPos);
 }

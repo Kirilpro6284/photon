@@ -20,30 +20,6 @@ uniform sampler2D noisetex;
 
 uniform sampler2D tex;
 
-//--// Camera uniforms
-
-uniform float blindness;
-
-uniform float near;
-uniform float far;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Time uniforms
-
-uniform float frameTimeCounter;
-
-//--// Custom uniforms
-
-uniform vec2 taa_offset;
-
-uniform vec3 shadowDir;
-
 //--// Includes //-----------------------------------------------------------//
 
 #include "/block.properties"

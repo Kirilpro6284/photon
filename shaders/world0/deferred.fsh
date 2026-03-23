@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 
 /*
  * Program description:
@@ -10,12 +10,12 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 4 */
-layout (location = 0) out vec3 radiance;
+writeonly uniform image2D imgSkyCapture;
+
+/* RENDERTARGETS: 15 */
+layout (location = 0) out vec4 colortex15Out;
 
 //--// Inputs //--------------------------------------------------------------//
-
-in vec2 coord;
 
 flat in vec3 weather;
 flat in vec3 cloudsDirectIrradiance;
@@ -28,64 +28,18 @@ flat in vec3 skyIrradiance;
 
 uniform sampler2D noisetex;
 
-uniform sampler3D colortex2; // Atmosphere scattering LUT
+uniform sampler2D colortex15;
+
+uniform sampler3D colortex9; // Atmosphere scattering LUT
 
 uniform sampler3D depthtex0; // 3D worley noise
 uniform sampler3D depthtex2; // 3D curl noise
-
-//--// Camera uniforms
-
-uniform float eyeAltitude;
-
-uniform vec3 cameraPosition;
-
-//--// Shadow uniforms
-
-uniform mat3 shadowModelView;
-
-//--// Time uniforms
-
-uniform int worldDay;
-uniform int worldTime;
-uniform int moonPhase;
-
-uniform int frameCounter;
-
-uniform float frameTimeCounter;
-
-uniform float sunAngle;
-
-uniform float rainStrength;
-uniform float wetness;
-
-//--// Custom uniforms
-
-uniform bool cloudsMoonlit;
-
-uniform float worldAge;
-
-uniform float biomeCave;
-uniform float biomeTemperature;
-uniform float biomeHumidity;
-uniform float biomeMayRain;
-
-uniform float timeSunset;
-uniform float timeNoon;
-uniform float timeSunrise;
-uniform float timeMidnight;
-
-uniform float lightningFlash;
-uniform float moonPhaseBrightness;
-
-uniform vec3 shadowDir;
-uniform vec3 sunDir;
-uniform vec3 moonDir;
 
 //--// Includes //------------------------------------------------------------//
 
 #define WORLD_OVERWORLD
 #define PROGRAM_SKY_CAPTURE
-#define ATMOSPHERE_SCATTERING_LUT colortex2
+#define ATMOSPHERE_SCATTERING_LUT colortex9
 
 #include "/block.properties"
 #include "/entity.properties"
@@ -94,13 +48,18 @@ uniform vec3 moonDir;
 #include "/include/atmospherics/clouds.glsl"
 #include "/include/atmospherics/sky.glsl"
 #include "/include/atmospherics/skyProjection.glsl"
+#include "/include/utility/encoding.glsl"
 
 //--// Functions //-----------------------------------------------------------//
 
 void main() {
 	ivec2 texel = ivec2(gl_FragCoord.xy);
 
-	radiance = vec3(0.0);
+	colortex15Out = texelFetch(colortex15, texel, 0);
+
+	if (gl_FragCoord.x > 256.0 || gl_FragCoord.y > 128.0) return;
+
+	vec3 radiance = vec3(0.0);
 
 	if (texel.x == skyCaptureRes.x) {
 		switch (texel.y) {
@@ -117,6 +76,8 @@ void main() {
 			break;
 		}
 	} else {
+		vec2 coord = rcp(vec2(256.0, 128.0)) * gl_FragCoord.xy;
+
 		vec3 rayDir = unprojectSky(coord);
 
 		/* -- atmosphere -- */
@@ -126,7 +87,7 @@ void main() {
 
 		vec3 atmosphereTransmittance = getAtmosphereTransmittance(rayDir.y, planetRadius);
 
-		radiance = radiance * atmosphereTransmittance + atmosphereScattering;
+		radiance = atmosphereScattering;
 
 		/* -- clouds -- */
 
@@ -145,4 +106,6 @@ void main() {
 
 		radiance = radiance * cloudsTransmittance + cloudsScattering;
 	}
+
+	imageStore(imgSkyCapture, texel, vec4(radiance, 1.0));
 }

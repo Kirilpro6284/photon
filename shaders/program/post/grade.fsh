@@ -7,7 +7,7 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 2 */
+/* RENDERTARGETS: 0 */
 layout (location = 0) out vec3 fragColor;
 
 //--// Inputs //--------------------------------------------------------------//
@@ -24,38 +24,6 @@ uniform sampler2D colortex5;  // Bloomy fog amount
 uniform sampler2D colortex8;  // Scene history and exposure
 uniform sampler2D colortex14; // Temporally stable linear depth
 uniform sampler2D colortex15; // Bloom tiles
-
-//--// Camera uniforms
-
-uniform int isEyeInWater;
-
-uniform ivec2 eyeBrightness;
-uniform ivec2 eyeBrightnessSmooth;
-
-uniform float near;
-uniform float far;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Time uniforms
-
-uniform float frameTime;
-
-uniform float rainStrength;
-uniform float wetness;
-
-//--// Custom uniforms
-
-uniform float eyeSkylight;
-
-uniform vec2 taa_offset;
-
-uniform vec2 viewSize;
-uniform vec2 windowSize;
-uniform vec2 windowTexelSize;
 
 //--// Includes //------------------------------------------------------------//
 

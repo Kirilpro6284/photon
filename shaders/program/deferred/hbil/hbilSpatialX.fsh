@@ -12,29 +12,10 @@ layout (location = 0) out vec4 data;
 
 //--// Uniforms //-------------------------------------------------------------//
 
-uniform sampler2D depthtex1;
+uniform sampler2D lodDepthTex1;
 
 uniform sampler2D colortex5;  // Indirect lighting data
 uniform sampler2D colortex10; // Indirect lighting history
-
-//--// Camera uniforms
-
-uniform float near;
-uniform float far;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Custom uniforms
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -72,7 +53,7 @@ vec4 weighHbilSample(vec4 data, vec3 normal, float z0, float offset, float NoV, 
 		vec3 irradianceSample = decodeRgbe8(vec4(unpackUnorm2x8(data.x), unpackUnorm2x8(data.y)));
 		vec3 normalSample = decodeUnitVector(unpackUnorm2x8(data.w));
 
-		float z1 = data.z * far;
+		float z1 = data.z * renderDistance;
 
 		float weight  = exp(-sigma * offset);
 		      weight *= depthWeight(z0, z1, NoV);
@@ -100,12 +81,12 @@ void main() {
 	ivec2 texel     = ivec2(gl_FragCoord.xy);
     ivec2 viewTexel = ivec2(gl_FragCoord.xy * rcp(hbilRenderScale));
 
-	float depth = texelFetch(depthtex1, viewTexel, 0).x;
+	float depth = texelFetch(lodDepthTex1, viewTexel, 0).x;
 
-	if (depth == 1.0 || clamp01(coord) != coord) { data = vec4(0.0); return; }
+	if (depth == 0.0 || clamp01(coord) != coord) { data = vec4(0.0); return; }
 
 	vec3 screenPos = vec3(coord, depth);
-	vec3 viewPos = screenToViewPos(coord, depth);
+	vec3 viewPos = screenToViewPos(coord, depth, true);
 
 	// fetch samples
     vec4 a = texelFetch(colortex5, texel + offsets[0], 0);
@@ -122,7 +103,7 @@ void main() {
 	vec3 normal = decodeUnitVector(unpackUnorm2x8(d.w));
 	vec3 viewNormal = mat3(gbufferModelView) * normal;
 
-	float z = d.z * far;
+	float z = d.z * renderDistance;
 	float NoV = abs(dot(viewNormal, viewPos) * rcpLength(viewPos));
 
 	// adjust blur strength based on pixel age

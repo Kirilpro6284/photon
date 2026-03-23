@@ -13,39 +13,13 @@ layout (location = 1) out vec4 irradianceHistory;
 
 //--// Uniforms //-------------------------------------------------------------//
 
-uniform sampler2D depthtex1;
+uniform sampler2D lodDepthTex1;
 
 uniform usampler2D colortex1;  // Scene data
-uniform sampler2D colortex2;  // Velocity vectors
 uniform sampler2D colortex5;  // Indirect lighting data
 uniform sampler2D colortex10; // Indirect lighting history
 uniform sampler2D colortex13; // Previous frame light levels
 uniform sampler2D colortex14; // Temporally stable linear depth
-
-//--// Camera uniforms
-
-uniform float near;
-uniform float far;
-
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-uniform mat4 gbufferPreviousModelView;
-uniform mat4 gbufferPreviousProjection;
-
-//--// Custom uniforms
-
-uniform bool worldAgeChanged;
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -100,7 +74,7 @@ void processSample(inout vec3 irradiance, inout float weightSum, vec4 data, ivec
 
 	vec3 irradianceSample = decodeRgbe8(vec4(unpackUnorm2x8(data.x), unpackUnorm2x8(data.y)));
 	vec3 normalSample = decodeUnitVector(unpackUnorm2x8(data.w));
-	float depthSample = data.z * far;
+	float depthSample = data.z * renderDistance;
 
 	float depthWeight    = depthWeight(depth, depthSample, NoV);
 	float normalWeight   = normalWeight(normal, normalSample);
@@ -118,12 +92,12 @@ void main() {
 	ivec2 texel     = ivec2(gl_FragCoord.xy);
     ivec2 viewTexel = ivec2(gl_FragCoord.xy * rcp(hbilRenderScale));
 
-	float depth = texelFetch(depthtex1, viewTexel, 0).x;
+	float depth = texelFetch(lodDepthTex1, viewTexel, 0).x;
 
-	if (depth == 1.0 || clamp01(coord) != coord) { data = vec4(0.0); return; }
+	if (depth == 0.0 || clamp01(coord) != coord) { data = vec4(0.0); return; }
 
 	vec3 screenPos = vec3(coord, depth);
-	vec3 viewPos = screenToViewPos(coord, depth);
+	vec3 viewPos = screenToViewPos(coord, depth, true);
 
 	//--// Spatial reconstruction
 
@@ -159,7 +133,7 @@ void main() {
 	vec3 normal = decodeUnitVector(unpackUnorm2x8(e.w));
 	vec3 viewNormal = mat3(gbufferModelView) * normal;
 
-	float z = e.z * far;
+	float z = e.z * renderDistance;
 	float NoV = abs(dot(viewNormal, viewPos) * rcpLength(viewPos));
 
 	// process surrounding samples

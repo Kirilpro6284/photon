@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 
 /*
  * Program description:
@@ -20,65 +20,10 @@ in vec2 coord;
 
 uniform sampler2D noisetex;
 
-uniform sampler2D depthtex1;
+uniform sampler2D lodDepthTex1;
 
 uniform sampler3D depthtex0; // 3D worley noise
 uniform sampler3D depthtex2; // 3D curl noise
-
-//--// Camera uniforms
-
-uniform float near;
-uniform float far;
-
-uniform float eyeAltitude;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Shadow uniforms
-
-uniform mat4 shadowModelView;
-uniform mat4 shadowModelViewInverse;
-uniform mat4 shadowProjection;
-uniform mat4 shadowProjectionInverse;
-
-//--// Time uniforms
-
-uniform int frameCounter;
-
-uniform int worldDay;
-uniform int worldTime;
-
-uniform float frameTimeCounter;
-
-uniform float rainStrength;
-uniform float wetness;
-
-//--// Custom uniforms
-
-uniform bool cloudsMoonlit;
-
-uniform float biomeTemperature;
-uniform float biomeHumidity;
-uniform float biomeMayRain;
-
-uniform float timeSunset;
-uniform float timeNoon;
-uniform float timeSunrise;
-uniform float timeMidnight;
-
-uniform float worldAge;
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec3 shadowDir;
-uniform vec3 sunDir;
-uniform vec3 moonDir;
 
 //--// Includes //------------------------------------------------------------//
 

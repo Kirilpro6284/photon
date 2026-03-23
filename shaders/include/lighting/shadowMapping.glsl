@@ -14,8 +14,7 @@
 const float shadowTexelSize = rcp(floor(float(shadowMapResolution)));
 
 // Fake, lightmap-based shadows for outside of the shadow distance or when shadow mapping is disabled
-float lightmapShadows(float skylight, float NoL, out float sssDepth) {
-	sssDepth = (0.15 + 6.0 * (1.0 - skylight)) * clamp01(1.0 - 0.8 * NoL);
+float lightmapShadows(float skylight, float NoL) {
 	return smoothstep(0.97, 0.99, skylight) * step(0.0, NoL);
 }
 
@@ -158,10 +157,8 @@ vec3 calculateShadows(
 
 	// fake, lightmap-based shadows for outside of the shadow distance
 
-	float s = 0.0;
+	float distantShadow   = lightmapShadows(skylight, NoL);
 
-	float distantShadow   = lightmapShadows(skylight, NoL, s);
-	float distantSssDepth = s;
 	if (clamp01(shadowScreenPos) != shadowScreenPos) return vec3(distantShadow);
 
 	// fade into distant shadows in the distance

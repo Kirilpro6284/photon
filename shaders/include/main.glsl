@@ -1,18 +1,60 @@
 #if !defined INCLUDE_GLOBAL
 #define INCLUDE_GLOBAL
 
-//--// Macros //-------------------------------------------------------------//
-
 #ifndef MC_GL_VENDOR_INTEL
 	#define attribute in
 #endif
 
+#ifndef PROGRAM_VOXY
+	#include "/include/uniforms.glsl"
+#endif
+
 #include "/include/config.glsl"
+
+//--// Macros //-------------------------------------------------------------//
+
+#define lodProjMat0 mat4( \
+    lodProjMat_0, \
+    lodProjMat_1, \
+    lodProjMat_2, \
+    lodProjMat_3 \
+)
+
+#define lodProjMatPrev0 mat4( \
+    lodProjMatPrev_0, \
+    lodProjMatPrev_1, \
+    lodProjMatPrev_2, \
+    lodProjMatPrev_3 \
+)
+
+#define lodProjMatInv0 mat4( \
+    lodProjMatInv_0, \
+    lodProjMatInv_1, \
+    lodProjMatInv_2, \
+    lodProjMatInv_3 \
+)
 
 #define rcp(x) (1.0 / (x))
 #define clamp01(x) clamp(x, 0.0, 1.0) // free on operation output
 #define max0(x) max(x, 0.0)
 #define min1(x) min(x, 1.0)
+
+#ifdef VOXY
+	#define renderDistance (float(vxRenderDistance) * 16.0)
+#else
+	#define renderDistance far
+#endif
+
+#if TAA_UPSCALING_FACTOR == 1
+	#define taauRenderScale 1.0
+#elif TAA_UPSCALING_FACTOR == 2
+	#define taauRenderScale 0.7071
+#elif TAA_UPSCALING_FACTOR == 4
+	#define taauRenderScale 0.5
+#endif
+
+#define lodDepthTex0 colortex11
+#define lodDepthTex1 colortex12
 
 //--// Constants //-----------------------------------------------------------//
 
@@ -26,20 +68,12 @@ const float goldenRatio = 0.5 + 0.5 * sqrt(5.0);
 const float goldenAngle = tau / goldenRatio / goldenRatio;
 
 const float renderScale = inversesqrt(float(TAA_UPSCALING_FACTOR));
-const float handDepth   = 0.56;
+const float handDepth   = 0.0;
 
 const float shadowDepthDist = 256.0;
 
 const vec3 shadowProjScale = vec3(rcp(shadowDistance), rcp(shadowDistance), -rcp(shadowDepthDist));
 const vec3 shadowProjScaleInv = vec3(shadowDistance, shadowDistance, -shadowDepthDist);
-
-#if TAA_UPSCALING_FACTOR == 1
-	#define taauRenderScale 1.0
-#elif TAA_UPSCALING_FACTOR == 2
-	#define taauRenderScale 0.7071
-#elif TAA_UPSCALING_FACTOR == 4
-	#define taauRenderScale 0.5
-#endif
 
 //--// Functions //-----------------------------------------------------------//
 
@@ -69,20 +103,6 @@ vec3 normalizeSafe(vec3 v) { return v == vec3(0.0) ? v : normalize(v); }
 // cbrt(|a|^3 + |b|^3 + ...). This results in smaller distances along the diagonal axes
 float cubicLength(vec2 v) {
 	return pow(cube(abs(v.x)) + cube(abs(v.y)), rcp(3.0));
-}
-
-// Source: https://iquilezles.org/www/articles/texture/texture.htm
-vec4 textureSmooth(sampler2D sampler, vec2 coord) {
-	vec2 res = vec2(textureSize(sampler, 0));
-
-	coord = coord * res + 0.5;
-
-	vec2 i, f = modf(coord, i);
-	f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
-	coord = i + f;
-
-	coord = (coord - 0.5) / res;
-	return texture(sampler, coord);
 }
 
 //--// Remapping functions

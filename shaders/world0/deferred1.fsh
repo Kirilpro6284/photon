@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 
 /*
  * Program description:
@@ -22,60 +22,10 @@ flat in vec3 weather;
 
 uniform sampler2D noisetex;
 
-uniform sampler2D depthtex1;
+uniform sampler2D lodDepthTex1;
 
 uniform sampler3D depthtex0; // 3D worley noise
 uniform sampler3D depthtex2; // 3D curl noise
-
-//--// Camera uniforms
-
-uniform float near;
-uniform float far;
-
-uniform float eyeAltitude;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Time uniforms
-
-uniform int worldDay;
-uniform int worldTime;
-
-uniform int frameCounter;
-
-uniform float frameTimeCounter;
-
-uniform float rainStrength;
-uniform float wetness;
-
-//--// Custom uniforms
-
-uniform bool cloudsMoonlit;
-
-uniform float worldAge;
-
-uniform float biomeTemperature;
-uniform float biomeHumidity;
-uniform float biomeMayRain;
-
-uniform float timeSunset;
-uniform float timeNoon;
-uniform float timeSunrise;
-uniform float timeMidnight;
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
-
-uniform vec3 shadowDir;
-uniform vec3 sunDir;
-uniform vec3 moonDir;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -110,7 +60,7 @@ uniform vec3 moonDir;
 float depthMax2x2(sampler2D depthSampler) {
 	vec2 samplePos = coord * (renderScale * rcp(cloudsRenderScale));
 	vec4 depthSamples0 = textureGather(depthSampler, samplePos);
-	return maxOf(depthSamples0);
+	return minOf(depthSamples0);
 }
 
 float depthMax4x2(sampler2D depthSampler) {
@@ -119,7 +69,7 @@ float depthMax4x2(sampler2D depthSampler) {
 	vec4 depthSamples0 = textureGather(depthSampler, samplePos + vec2( 2.0 * viewTexelSize.x, viewTexelSize.y));
 	vec4 depthSamples1 = textureGather(depthSampler, samplePos + vec2(-2.0 * viewTexelSize.x, viewTexelSize.y));
 
-	return max(maxOf(depthSamples0), maxOf(depthSamples1));
+	return min(minOf(depthSamples0), minOf(depthSamples1));
 }
 
 float depthMax4x4(sampler2D depthSampler) {
@@ -130,9 +80,9 @@ float depthMax4x4(sampler2D depthSampler) {
 	vec4 depthSamples2 = textureGather(depthSampler, samplePos + vec2( 2.0 * viewTexelSize.x, -2.0 * viewTexelSize.y));
 	vec4 depthSamples3 = textureGather(depthSampler, samplePos + vec2(-2.0 * viewTexelSize.x, -2.0 * viewTexelSize.y));
 
-	return max(
-		max(maxOf(depthSamples0), maxOf(depthSamples1)),
-		max(maxOf(depthSamples2), maxOf(depthSamples3))
+	return min(
+		min(minOf(depthSamples0), minOf(depthSamples1)),
+		min(minOf(depthSamples2), minOf(depthSamples3))
 	);
 }
 
@@ -144,17 +94,16 @@ void main() {
 
 	// Get maximum depth from area covered by this fragment
 #if   CLOUDS_UPSCALING_FACTOR == 1
-	float depth = texelFetch(depthtex1, viewTexel, 0).x;
+	float depth = texelFetch(lodDepthTex1, viewTexel, 0).x;
 #elif CLOUDS_UPSCALING_FACTOR == 2 || CLOUDS_UPSCALING_FACTOR == 4
-	float depth = depthMax2x2(depthtex1);
+	float depth = depthMax2x2(lodDepthTex1);
 #elif CLOUDS_UPSCALING_FACTOR == 8
-	float depth = depthMax4x2(depthtex1);
+	float depth = depthMax4x2(lodDepthTex1);
 #elif CLOUDS_UPSCALING_FACTOR == 9 || CLOUDS_UPSCALING_FACTOR == 16
-	float depth = depthMax4x4(depthtex1);
+	float depth = depthMax4x4(lodDepthTex1);
 #endif
 
-	vec3 screenPos = vec3(viewTexel * viewTexelSize, depth);
-	vec3 viewPos = projectAndDivide(gbufferProjectionInverse, screenPos * 2.0 - 1.0);
+	vec3 viewPos = screenToViewPos(viewTexel * viewTexelSize, depth, false);
 
 	vec3 rayOrigin = vec3(0.0, CLOUDS_SCALE * (eyeAltitude - SEA_LEVEL) + planetRadius, 0.0) + CLOUDS_SCALE * gbufferModelViewInverse[3].xyz;
 	vec3 rayDir    = mat3(gbufferModelViewInverse) * normalize(viewPos);
@@ -169,7 +118,7 @@ void main() {
 		rayDir,
 		cloudsLightDir,
 		dither,
-		(depth < 1.0)
+		(depth > 0.0)
 			? length(viewPos) * CLOUDS_SCALE
 			: -1.0,
 		false

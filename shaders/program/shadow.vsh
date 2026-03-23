@@ -25,23 +25,6 @@ uniform sampler2D shadowtex0;
 
 uniform sampler2D noisetex;
 
-//--// Camera uniforms
-
-uniform vec3 cameraPosition;
-
-uniform int isEyeInWater;
-
-//--// Shadow uniforms
-
-uniform mat4 shadowModelView;
-uniform mat4 shadowModelViewInverse;
-
-//--// Time uniforms
-
-uniform float frameTimeCounter;
-
-uniform float rainStrength;
-
 //--// Includes //------------------------------------------------------------//
 
 #include "/block.properties"

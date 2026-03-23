@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 #include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
@@ -6,12 +6,6 @@
 out vec2 texCoord;
 
 flat out vec3 tint;
-
-//--// Uniforms //------------------------------------------------------------//
-
-//--// Custom uniforms
-
-uniform vec2 taa_offset;
 
 //--// Functions //-----------------------------------------------------------//
 

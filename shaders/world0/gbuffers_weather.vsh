@@ -1,19 +1,10 @@
-#version 410 compatibility
+#version 430 compatibility
 #include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
 out vec2 uv;
 out vec4 tint;
-
-//--// Uniforms //------------------------------------------------------------//
-
-//--// Camera uniforms
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
 
 //--// Functions //-----------------------------------------------------------//
 

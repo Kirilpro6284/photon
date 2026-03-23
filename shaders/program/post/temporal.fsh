@@ -24,7 +24,6 @@ flat in float histogramSelectedBin;
 
 //--// Uniforms //------------------------------------------------------------//
 
-uniform sampler2D colortex2;  // Motion vectors for entities
 uniform sampler2D colortex3;  // Scene radiance
 uniform sampler2D colortex5;  // Responsive AA flag
 uniform sampler2D colortex6;  // AABB min
@@ -32,42 +31,14 @@ uniform sampler2D colortex7;  // AABB max
 uniform sampler2D colortex8;  // Scene history
 uniform sampler2D colortex14; // Temporally stable linear depth
 
-uniform sampler2D depthtex0;
-
-//--// Camera uniforms
-
-uniform float near;
-uniform float far;
-
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-uniform mat4 gbufferPreviousModelView;
-uniform mat4 gbufferPreviousProjection;
-
-//--// Time uniforms
-
-uniform float frameTime;
-
-//--// Custom uniforms
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 windowSize;
-
-uniform vec2 taa_offset;
+uniform sampler2D lodDepthTex1;
 
 //--// Includes //------------------------------------------------------------//
 
 #include "/include/utility/bicubic.glsl"
 #include "/include/utility/color.glsl"
 #include "/include/utility/fastMath.glsl"
+#include "/include/utility/textureSampling.glsl"
 #define TEMPORAL_REPROJECTION
 #include "/include/utility/spaceConversion.glsl"
 
@@ -83,10 +54,10 @@ vec3 getClosestFragment(ivec2 texel, float depth) {
 	ivec2 texel3 = texel + ivec2(-2,  2);
 	ivec2 texel4 = texel + ivec2( 2,  2);
 
-	float depth1 = texelFetch(depthtex0, texel1, 0).x;
-	float depth2 = texelFetch(depthtex0, texel2, 0).x;
-	float depth3 = texelFetch(depthtex0, texel3, 0).x;
-	float depth4 = texelFetch(depthtex0, texel4, 0).x;
+	float depth1 = texelFetch(lodDepthTex1, texel1, 0).x;
+	float depth2 = texelFetch(lodDepthTex1, texel2, 0).x;
+	float depth3 = texelFetch(lodDepthTex1, texel3, 0).x;
+	float depth4 = texelFetch(lodDepthTex1, texel4, 0).x;
 
 	vec3 pos  = depth  < depth1 ? vec3(texel,  depth ) : vec3(texel1, depth1);
 	vec3 pos1 = depth2 < depth3 ? vec3(texel2, depth2) : vec3(texel3, depth3);
@@ -152,7 +123,7 @@ void main() {
 	ivec2 dstTexel = ivec2(gl_FragCoord.xy);
 	ivec2 srcTexel = ivec2(gl_FragCoord.xy * renderScale);
 
-	float depth = texelFetch(depthtex0, srcTexel, 0).x;
+	float depth = texelFetch(lodDepthTex1, srcTexel, 0).x;
 
 #ifdef TAA
 	vec2 adjustedCoord = clamp01(coord + 0.5 * taa_offset);
@@ -224,8 +195,11 @@ void main() {
 	result.a   = pixelAge * offcenterRejection; // recover more quickly
 
 	// Calculate temporally stable linear depth
-	temporalDepth = textureSmooth(colortex14, previousCoord).x;
-	temporalDepth = clamp(temporalDepth, depthTaaInfo.y * far, depthTaaInfo.z * far);
+
+	vec2 unpack = unpackHalf2x16((uint(depthTaaInfo.y * 65535.0 + 0.5) << 16u) | uint(depthTaaInfo.z * 65535.0 + 0.5));
+
+	temporalDepth = textureSmooth(colortex14, previousCoord, windowSize).x;
+	temporalDepth = clamp(temporalDepth, reverseLinearDepth(unpack.x), reverseLinearDepth(unpack.y));
 	temporalDepth = mix(temporalDepth, linearizeDepth(depth), alpha);
 #else
 	result.rgb = texelFetch(colortex3, srcTexel, 0).rgb;

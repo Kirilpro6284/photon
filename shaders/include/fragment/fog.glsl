@@ -12,7 +12,7 @@ float getSphericalFog(float viewerDistance, float fogStartDistance, float fogDen
 }
 
 float getBorderFog(vec3 scenePos, vec3 direction) {
-	float fog = cubicLength(scenePos.xz) / far;
+	float fog = cubicLength(scenePos.xz) / renderDistance;
 	      fog = exp2(-8.0 * pow8(fog));
 	      fog = mix(fog, 1.0, 0.75 * dampen(linearStep(0.0, 0.2, direction.y)));
 

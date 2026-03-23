@@ -24,15 +24,15 @@ uniform sampler2D noisetex;
 
 uniform sampler2D colortex0;  // Translucent overlays
 uniform usampler2D colortex1; // Scene data
+uniform sampler2D colortex2; // clouds history
 uniform sampler2D colortex3;  // Scene radiance
-uniform sampler2D colortex4;  // Sky capture
+uniform sampler2D skyCapture;  // Sky capture
 uniform sampler2D colortex5;  // Indirect lighting
-uniform sampler2D colortex6;  // Clear sky
-uniform sampler2D colortex7;  // Shadow penumbra mask
+uniform sampler2D colortex7;  // Clear sky
 uniform sampler2D colortex8;  // Scene history
 uniform sampler2D colortex15; // Cloud shadow map
 
-uniform sampler2D depthtex1;
+uniform sampler2D lodDepthTex1;
 
 uniform sampler2D shadowtex0;
 
@@ -43,75 +43,6 @@ uniform sampler2DShadow shadowtex0HW;
 #endif
 uniform sampler2DShadow shadowtex1HW;
 #endif
-
-//--// Camera uniforms
-
-uniform int isEyeInWater;
-
-uniform ivec2 eyeBrightnessSmooth;
-
-uniform float eyeAltitude;
-
-uniform float near;
-uniform float far;
-
-uniform float blindness;
-
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-uniform mat4 gbufferPreviousModelView;
-uniform mat4 gbufferPreviousProjection;
-
-//--// Shadow uniforms
-
-uniform mat4 shadowModelView;
-uniform mat4 shadowModelViewInverse;
-uniform mat4 shadowProjection;
-uniform mat4 shadowProjectionInverse;
-
-//--// Time uniforms
-
-uniform int frameCounter;
-
-uniform int moonPhase;
-uniform int worldDay;
-uniform int worldTime;
-
-uniform float frameTimeCounter;
-
-uniform float sunAngle;
-
-uniform float rainStrength;
-uniform float wetness;
-
-//--// Custom uniforms
-
-uniform float eyeSkylight;
-
-uniform float biomeCave;
-uniform float biomeTemperature;
-uniform float biomeHumidity;
-uniform float biomeMayRain;
-
-uniform float timeSunset;
-uniform float timeNoon;
-uniform float timeSunrise;
-uniform float timeMidnight;
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
-
-uniform vec3 shadowDir;
-uniform vec3 sunDir;
-uniform vec3 moonDir;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -153,7 +84,7 @@ vec4 weighHbilSample(vec4 data, vec3 normal, float z0, float NoV, float weight) 
 		vec3 irradianceSample = decodeRgbe8(vec4(unpackUnorm2x8(data.x), unpackUnorm2x8(data.y)));
 		vec3 normalSample = decodeUnitVector(unpackUnorm2x8(data.w));
 
-		float z1 = data.z * far;
+		float z1 = data.z * renderDistance;
 
 		weight *= exp2(-max0(abs(z0 - z1) - depthTolerance) * depthStrictness * NoV);
 		weight *= pow16(abs(dot(normal, normalSample))) * 0.99 + 0.01;
@@ -190,19 +121,19 @@ void main() {
 
 	/* -- texture fetches -- */
 
-	float depth   = texelFetch(depthtex1, texel, 0).x;
+	float depth   = texelFetch(lodDepthTex1, texel, 0).x;
 	vec4 overlays = texelFetch(colortex0, texel, 0);
 	uvec4 encoded = texelFetch(colortex1, texel, 0);
 	radiance      = texelFetch(colortex3, texel, 0).rgb;
-	vec3 clearSky = texelFetch(colortex6, texel, 0).rgb;
+	vec3 clearSky = texelFetch(colortex7, texel, 0).rgb;
 
-	if (depth == 1.0) return;
+	if (depth == 0.0) return;
 
 	/* -- transformations -- */
 
-	if (depth < handDepth) depth += 0.38; // Hand lighting fix from Capt Tatsu
+	//if (depth < handDepth) depth += 0.38; // Hand lighting fix from Capt Tatsu
 
-	vec3 viewPos  = screenToViewPos(coord, depth);
+	vec3 viewPos  = screenToViewPos(coord, depth, true);
 	vec3 scenePos = viewToSceneSpace(viewPos);
 	vec3 worldPos = scenePos + cameraPosition;
 
@@ -271,6 +202,7 @@ void main() {
 	radiance = getSceneLighting(
 		material,
 		scenePos,
+		viewPos,
 		normal,
 		geometryNormal,
 		viewerDir,

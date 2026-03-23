@@ -7,7 +7,7 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 2 */
+/* RENDERTARGETS: 0 */
 layout (location = 0) out vec3 fragColor;
 
 //--// Inputs //--------------------------------------------------------------//
@@ -16,9 +16,7 @@ in vec2 coord;
 
 //--// Uniforms //------------------------------------------------------------//
 
-uniform sampler2D colortex2; // LDR linear scene color
-
-uniform vec2 windowTexelSize;
+uniform sampler2D colortex0; // LDR linear scene color
 
 //--// Functions //-----------------------------------------------------------//
 
@@ -55,15 +53,15 @@ void main() {
 	// a b c
 	// d e f
 	// g h i
-	vec3 a = texelFetch(colortex2, texel + ivec2(-1,  1), 0).rgb;
-	vec3 b = texelFetch(colortex2, texel + ivec2( 0,  1), 0).rgb;
-	vec3 c = texelFetch(colortex2, texel + ivec2( 1,  1), 0).rgb;
-	vec3 d = texelFetch(colortex2, texel + ivec2(-1,  0), 0).rgb;
-	vec3 e = texelFetch(colortex2, texel, 0).rgb;
-	vec3 f = texelFetch(colortex2, texel + ivec2( 1,  0), 0).rgb;
-	vec3 g = texelFetch(colortex2, texel + ivec2(-1, -1), 0).rgb;
-	vec3 h = texelFetch(colortex2, texel + ivec2( 0, -1), 0).rgb;
-	vec3 i = texelFetch(colortex2, texel + ivec2( 1, -1), 0).rgb;
+	vec3 a = texelFetch(colortex0, texel + ivec2(-1,  1), 0).rgb;
+	vec3 b = texelFetch(colortex0, texel + ivec2( 0,  1), 0).rgb;
+	vec3 c = texelFetch(colortex0, texel + ivec2( 1,  1), 0).rgb;
+	vec3 d = texelFetch(colortex0, texel + ivec2(-1,  0), 0).rgb;
+	vec3 e = texelFetch(colortex0, texel, 0).rgb;
+	vec3 f = texelFetch(colortex0, texel + ivec2( 1,  0), 0).rgb;
+	vec3 g = texelFetch(colortex0, texel + ivec2(-1, -1), 0).rgb;
+	vec3 h = texelFetch(colortex0, texel + ivec2( 0, -1), 0).rgb;
+	vec3 i = texelFetch(colortex0, texel + ivec2( 1, -1), 0).rgb;
 
 	// Luma at the current fragment
 	float luma = getLuma(e);
@@ -156,8 +154,8 @@ void main() {
 	vec2 uv2 = currentUv + offset;
 
 	// Read the lumas at both current extremities of the exploration segment, and compute the delta wrt the local average luma
-	float lumaEnd1 = getLuma(texture(colortex2, uv1).rgb);
-	float lumaEnd2 = getLuma(texture(colortex2, uv2).rgb);
+	float lumaEnd1 = getLuma(texture(colortex0, uv1).rgb);
+	float lumaEnd2 = getLuma(texture(colortex0, uv2).rgb);
 	lumaEnd1 -= lumaLocalAverage;
 	lumaEnd2 -= lumaLocalAverage;
 
@@ -177,12 +175,12 @@ void main() {
 		for (int i = 2; i < maxIterations; ++i) {
 			// If needed, read luma in 1st direction, compute delta
 			if (!reached1) {
-				lumaEnd1  = getLuma(texture(colortex2, uv1).rgb);
+				lumaEnd1  = getLuma(texture(colortex0, uv1).rgb);
 				lumaEnd1 -= lumaLocalAverage;
 			}
 			// If needed, read luma in the opposite direction, compute delta
 			if (!reached2) {
-				lumaEnd2  = getLuma(texture(colortex2, uv2).rgb);
+				lumaEnd2  = getLuma(texture(colortex0, uv2).rgb);
 				lumaEnd2 -= lumaLocalAverage;
 			}
 
@@ -251,5 +249,5 @@ void main() {
 	}
 
 	// Return the color at the new UV coordinates
-	fragColor = texture(colortex2, finalUv).rgb;
+	fragColor = texture(colortex0, finalUv).rgb;
 }

@@ -1,57 +1,27 @@
-#include "/include/main.glsl"
+#define PROGRAM_VOXY
 
-#ifdef fsh
+#include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 0,9,11 */
 layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec4 waterMask;
 layout (location = 2) out vec4 fragDepth;
 
 //--// Inputs //--------------------------------------------------------------//
 
-noperspective in float reversedDepth;
-
-in vec2 texCoord;
-in vec2 lmCoord;
-in vec3 viewPos;
-in vec3 scenePos;
-in vec3 viewerDirTangent;
-
-flat in uint blockId;
-flat in vec4 tint;
-flat in mat3 tbnMatrix;
-
-//--// Uniforms //------------------------------------------------------------//
-
-uniform sampler2D noisetex;
-
-uniform sampler2D lodDepthTex1;
-
-uniform sampler2D skyCapture;  // Sky capture
-uniform sampler2D colortex7;  // Clear sky
-uniform sampler2D colortex8;  // Scene history
-uniform sampler2D colortex15; // Cloud shadow map
-
-#if MC_VERSION < 11700
-	#define gtexture gcolor
-#endif
-
-uniform sampler2D gtexture;
-
-#ifdef NORMAL_MAP
-uniform sampler2D normals;
-#endif
-
-#ifdef SPECULAR_MAP
-uniform sampler2D specular;
-#endif
-
-#ifdef SHADOW
-uniform sampler2D shadowtex0;
-uniform sampler2DShadow shadowtex1HW;
-#endif
+/*
+    struct VoxyFragmentParameters {
+        vec4 sampledColour;
+        vec2 tile;
+        vec2 uv;
+        uint face;
+        uint modelId;
+        vec2 lightMap;
+        vec4 tinting;
+        uint customId;//Same as iris's modelId
+    };
+*/
 
 //--// Includes //------------------------------------------------------------//
 
@@ -83,11 +53,21 @@ uniform sampler2DShadow shadowtex1HW;
 const float lodBias = log2(renderScale);
 const float waterOpacity = 0.02;
 
-void main() {
+void voxy_emitFragment (VoxyFragmentParameters parameters) {
 	vec2 coord = gl_FragCoord.xy * viewTexelSize;
 	if (clamp01(coord) != coord) discard;
 
-	/* -- fetch lighting palette -- */
+	uint blockId = parameters.customId - 10000u;
+
+	vec4 viewPos = vxProjInv * vec4(coord, gl_FragCoord.z * 2.0 - 1.0, 1.0);
+
+    viewPos.z /= viewPos.w;
+
+    fragDepth = vec4((lodProjMat_2.z * viewPos.z + lodProjMat_3.z) / (lodProjMat_2.w * viewPos.z) * -0.5, 0.0, 0.0, 1.0);
+
+	vec3 scenePos = viewToSceneSpace(viewPos.xyz);
+
+    /* -- fetch lighting palette -- */
 
 	vec3 ambientIrradiance = texelFetch(skyCapture, ivec2(255, 0), 0).rgb;
 	vec3 directIrradiance  = texelFetch(skyCapture, ivec2(255, 1), 0).rgb;
@@ -99,7 +79,13 @@ void main() {
 	vec3 normalTangent = vec3(0.0, 0.0, 1.0);
 	float materialAo   = 1.0;
 
-	vec4 baseTex = texture(gtexture, texCoord, lodBias) * tint;
+    vec4 baseTex = parameters.sampledColour * parameters.tinting;
+
+    vec3 flatNormal = vec3(uint((parameters.face>>1)==2), uint((parameters.face>>1)==0), uint((parameters.face>>1)==1)) * (float(int(parameters.face)&1)*2-1);
+
+    mat3 tbnMatrix = getTbnMatrix(flatNormal);
+
+	vec3 viewerDirTangent = normalize(gbufferModelViewInverse[3].xyz - scenePos) * tbnMatrix;
 
 	if (blockId == BLOCK_WATER) {
 		material.albedo           = vec3(0.0);
@@ -122,14 +108,14 @@ void main() {
 
 		vec3 worldPos = scenePos + cameraPosition;
 
-		bool isStill = abs(tbnMatrix[2].y) > 0.99;
-		vec2 flowDir = isStill ? vec2(0.0) : normalize(tbnMatrix[2].xz);
+		bool isStill = abs(flatNormal.y) > 0.99;
+		vec2 flowDir = isStill ? vec2(0.0) : normalize(flatNormal.xz);
 
 #ifdef WATER_PARALLAX
 		worldPos.xz = waterParallax(normalize(viewerDirTangent), worldPos.xz, flowDir);
 #endif
 
-		normalTangent = getWaterNormal(tbnMatrix[2], worldPos, flowDir);
+		normalTangent = getWaterNormal(flatNormal, worldPos, flowDir);
 	} else {
 		if (baseTex.a < 0.1) discard;
 
@@ -137,16 +123,6 @@ void main() {
 		fragColor.a = baseTex.a;
 
 		material = getMaterial(albedo, blockId);
-
-#ifdef SPECULAR_MAP
-		vec4 specularTex = textureLod(specular, texCoord, 0);
-		decodeSpecularTex(specularTex, material);
-#endif
-
-#ifdef NORMAL_MAP
-		vec3 normalTex = texture(normals, texCoord, lodBias).xyz;
-		decodeNormalTex(normalTex, normalTangent, materialAo);
-#endif
 
 		// Hardcoded reflections and SSS for stained glass
 		if (blockId == BLOCK_STAINED_GLASS) {
@@ -156,37 +132,29 @@ void main() {
 		}
 
 		// Hardcoded SSS for slime
-		if (blockId == BLOCK_SLIME) {
+		if (parameters.customId == BLOCK_SLIME) {
 			material.sssAmount = 0.5;
 		}
 	}
 
-	float viewerDistance = length(viewPos);
+	float viewerDistance = length(viewPos.xyz);
 
 	vec3 normal = tbnMatrix * normalTangent;
-	vec3 flatNormal = tbnMatrix[2];
 	vec3 viewerDir = (gbufferModelViewInverse[3].xyz - scenePos) * rcp(viewerDistance);
-
-#if defined PROGRAM_GBUFFERS_TEXTURED || defined PROGRAM_GBUFFERS_TEXTURED_LIT
-	// no normal attribute
-	normal = vec3(0.0, 1.0, 0.0);
-	flatNormal = normal;
-#endif
 
 	/* -- lighting -- */
 
-	float sssDepth;
 	fragColor.rgb = getSceneLighting(
 		material,
 		scenePos,
-		viewPos,
+		viewPos.xyz,
 		normal,
 		flatNormal,
 		viewerDir,
 		directIrradiance,
 		ambientIrradiance,
 		skyIrradiance,
-		lmCoord,
+		parameters.lightMap,
 		materialAo,
 		getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter),
 		blockId
@@ -194,20 +162,20 @@ void main() {
 
 	/* -- reflections -- */
 
-#if defined SSR && defined PROGRAM_GBUFFERS_WATER
+#if defined SSR
 	fragColor.rgb += getSpecularReflections(
 		material,
 		tbnMatrix,
-		vec3(coord, reversedDepth * -0.5),
-		viewPos,
+		vec3(coord, fragDepth.r),
+		viewPos.xyz,
 		normal,
 		viewerDir,
 		viewerDirTangent,
-		lmCoord.y
+		parameters.lightMap.y
 	);
 #endif
 
-	/* -- fog -- */
+    /* -- fog -- */
 
 	vec3 clearSky = texelFetch(colortex7, ivec2(gl_FragCoord.xy), 0).rgb;
 	fragColor.rgb = applyFog(fragColor.rgb, scenePos, clearSky);
@@ -221,8 +189,8 @@ void main() {
 		fragColor.a = max(fresnelDielectric(NoV, eta), eps);
 
 		vec2 lightingInfo;
-		lightingInfo.x = clamp01(rcp(32.0) * sssDepth);
-		lightingInfo.y = lmCoord.y;
+		lightingInfo.x = clamp01(rcp(32.0) * 1.0);
+		lightingInfo.y = parameters.lightMap.y;
 
 		waterMask.x = packUnorm2x8(normalTangent.xy * 0.5 + 0.5);
 		waterMask.y = packUnorm2x8(lightingInfo);
@@ -231,83 +199,4 @@ void main() {
 	} else {
 		waterMask = vec4(0.0);
 	}
-
-	fragColor.rgb *= rcp(fragColor.a);
-
-	fragDepth = vec4(reversedDepth * -0.5, 0.0, 0.0, 1.0);
 }
-
-#endif
-
-#ifdef vsh
-
-
-//--// Outputs //-------------------------------------------------------------//
-
-noperspective out float reversedDepth;
-
-out vec2 texCoord;
-out vec2 lmCoord;
-out vec3 viewPos;
-out vec3 scenePos;
-out vec3 viewerDirTangent;
-
-flat out uint blockId;
-flat out vec4 tint;
-flat out mat3 tbnMatrix;
-
-//--// Inputs //--------------------------------------------------------------//
-
-attribute vec4 at_tangent;
-attribute vec3 mc_Entity;
-attribute vec2 mc_midTexCoord;
-
-//--// Uniforms //------------------------------------------------------------//
-
-uniform sampler2D noisetex;
-
-//--// Includes //------------------------------------------------------------//
-
-#include "/block.properties"
-
-#include "/include/utility/spaceConversion.glsl"
-
-#include "/include/vertex/animation.glsl"
-
-//--// Functions //-----------------------------------------------------------//
-
-void main() {
-	texCoord = gl_MultiTexCoord0.xy;
-	lmCoord  = clamp01(gl_MultiTexCoord1.xy * rcp(240.0));
-	tint     = gl_Color;
-	blockId  = uint(max0(mc_Entity.x - 10000.0));
-
-#ifdef PROGRAM_GBUFFERS_TEXTURED_LIT
-#ifdef HIDE_WORLD_BORDER
-	if (renderStage == MC_RENDER_STAGE_WORLD_BORDER) { gl_Position = vec4(-1.0); return; }
-#endif
-#endif
-
-	tbnMatrix[2] = mat3(gbufferModelViewInverse) * normalize(gl_NormalMatrix * gl_Normal);
-	tbnMatrix[0] = mat3(gbufferModelViewInverse) * normalize(gl_NormalMatrix * at_tangent.xyz);
-	tbnMatrix[1] = cross(tbnMatrix[0], tbnMatrix[2]) * sign(at_tangent.w);
-
-	viewPos  = transform(gl_ModelViewMatrix, gl_Vertex.xyz);
-	scenePos = transform(gbufferModelViewInverse, viewPos);
-
-	reversedDepth = (lodProjMat_2.z * viewPos.z + lodProjMat_3.z) / (lodProjMat_2.w * viewPos.z + lodProjMat_3.w);
-
-	viewerDirTangent = normalize(gbufferModelViewInverse[3].xyz - scenePos) * tbnMatrix;
-
-	vec4 clipPos  = project(gl_ProjectionMatrix, viewPos);
-
-#ifdef TAA
-    clipPos.xy += taa_offset * clipPos.w;
-	clipPos.xy  = clipPos.xy * renderScale + clipPos.w * (renderScale - 1.0);
-#endif
-
-	gl_Position = clipPos;
-}
-
-
-#endif

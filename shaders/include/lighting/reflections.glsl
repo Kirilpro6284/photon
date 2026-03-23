@@ -8,6 +8,7 @@
 
 #include "/include/utility/sampling.glsl"
 #include "/include/utility/spaceConversion.glsl"
+#include "/include/utility/textureSampling.glsl"
 
 vec3 traceSpecularRay(
 	vec3 screenPos,
@@ -20,8 +21,7 @@ vec3 traceSpecularRay(
 	vec3 rayDirView = mat3(gbufferModelView) * rayDir;
 
 	vec3 hitPos;
-	bool hit = raytraceIntersection(
-		depthtex1,
+	float hit = traceScreenSpaceRay(
 		screenPos,
 		viewPos,
 		rayDirView,
@@ -31,9 +31,9 @@ vec3 traceSpecularRay(
 		hitPos
 	);
 
-	vec3 skyRadiance = texture(colortex4, projectSky(rayDir)).rgb * skylightFalloff * float(isEyeInWater == 0);
+	vec3 skyRadiance = texture(skyCapture, projectSky(rayDir)).rgb * skylightFalloff * float(isEyeInWater == 0);
 
-	if (hit) {
+	if (hit < 1.0) {
 		float borderAttenuation = (hitPos.x * hitPos.y - hitPos.x) * (hitPos.x * hitPos.y - hitPos.y);
 		      borderAttenuation = dampen(linearStep(0.0, 0.005, borderAttenuation));
 

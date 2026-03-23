@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 #include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
@@ -9,32 +9,7 @@ flat out vec3 weather;
 
 //--// Uniforms //------------------------------------------------------------//
 
-uniform sampler2D colortex4; // Sky capture, color palette and weather properties
-
-//--// Camera uniforms
-
-uniform vec3 cameraPosition;
-
-//--// Time uniforms
-
-uniform int worldDay;
-uniform int worldTime;
-
-uniform float frameTimeCounter;
-
-uniform float wetness;
-uniform float rainStrength;
-
-uniform float biomeTemperature;
-uniform float biomeHumidity;
-uniform float biomeMayRain;
-
-uniform float timeSunset;
-uniform float timeNoon;
-uniform float timeSunrise;
-uniform float timeMidnight;
-
-uniform vec3 shadowDir;
+uniform sampler2D skyCapture; // Sky capture, color palette and weather properties
 
 //--// Includes //------------------------------------------------------------//
 

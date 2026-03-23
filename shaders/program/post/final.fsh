@@ -19,39 +19,13 @@ uniform sampler2D noisetex;
 uniform sampler2D DEBUG_SAMPLER;
 #endif
 
-uniform sampler2D colortex4;
+uniform sampler2D skyCapture;
 
-uniform sampler2D colortex2; // Post-processing color
+uniform usampler2D colortex1;
+uniform sampler2D colortex0; // Post-processing color
 
-//--// Camera uniforms
-
-uniform float blindness;
-
-uniform vec3 cameraPosition;
-
-//--// Time uniforms
-
-uniform int worldDay;
-uniform int worldTime;
-
-uniform float frameTimeCounter;
-
-uniform float rainStrength;
-uniform float wetness;
-
-//--// Custom uniforms
-
-uniform float biomeCave;
-uniform float biomeTemperature;
-uniform float biomeHumidity;
-uniform float biomeMayRain;
-
-uniform float timeSunrise;
-uniform float timeNoon;
-uniform float timeSunset;
-uniform float timeMidnight;
-
-uniform vec3 shadowDir;
+uniform sampler2D lodDepthTex1;
+uniform sampler2D lodDepthTex0;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -60,6 +34,9 @@ uniform vec3 shadowDir;
 #include "/include/utility/bicubic.glsl"
 #include "/include/utility/color.glsl"
 #include "/include/utility/dithering.glsl"
+
+#include "/include/utility/encoding.glsl"
+#include "/include/utility/spaceConversion.glsl"
 
 //--// Functions //-----------------------------------------------------------//
 
@@ -123,12 +100,12 @@ void main() {
 
     if (abs(MC_RENDER_QUALITY - 1.0) < 1e-2) {
 #ifdef CAS
-        fragColor = textureCas(colortex2, texel, CAS_STRENGTH);
+        fragColor = textureCas(colortex0, texel, CAS_STRENGTH);
 #else
-        fragColor = texelFetch(colortex2, texel, 0).rgb;
+        fragColor = texelFetch(colortex0, texel, 0).rgb;
 #endif
     } else {
-        fragColor = textureCatmullRom(colortex2, coord).rgb;
+        fragColor = textureCatmullRom(colortex0, coord).rgb;
     }
 
 #ifdef VIGNETTE
@@ -198,5 +175,7 @@ void main() {
     if (abs(coord.y - displayVariable1) < 0.005) fragColor = vec3(0.0);
 #endif
 
-    //fragColor = 0.1 * texelFetch(colortex4, texel >> 2, 0).rgb;
+    uvec4 encoded = texelFetch(colortex1, texel, 0);
+
+    //fragColor = vec3(pow(texelFetch(lodDepthTex0, texel, 0).r, 0.05));
 }

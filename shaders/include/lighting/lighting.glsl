@@ -7,7 +7,10 @@
 #include "/include/lighting/cloudShadows.glsl"
 #include "/include/lighting/shadowMapping.glsl"
 
+#include "/include/fragment/raytracer.glsl"
+
 #include "/include/utility/fastMath.glsl"
+#include "/include/utility/spaceConversion.glsl"
 
 const float skylightBoost       = 1.0;
 const float blocklightIntensity = 64.0 * BLOCKLIGHT_INTENSITY;
@@ -54,6 +57,7 @@ float getFakeBouncedLight(vec3 bentNormal, float sssDepth, float ao) {
 vec3 getSceneLighting(
 	Material material,
 	vec3 scenePos,
+	vec3 viewPos,
 	vec3 normal,
 	vec3 geometryNormal,
 	vec3 viewerDir,
@@ -98,9 +102,30 @@ vec3 getSceneLighting(
 		float NoH = (NoL + NoV) * halfwayNorm;
 		float LoH = LoV * halfwayNorm + halfwayNorm;
 
+		float lodGradient = smoothstep(0.8, 0.95, length(scenePos) / min(far, shadowDistance));
+
+		float sssDepth = blockerDepth;
+		
+		if (lodGradient > 0.0) {
+			vec3 viewNormal = mat3(gbufferModelView) * geometryNormal;
+
+			vec3 rayStart = viewToScreenSpace(viewPos + 2.0 * viewShadowDir - viewNormal * 0.2, true);
+			vec3 rayEnd = viewToScreenSpace(viewPos - viewNormal * 0.2, true);
+
+			float distantSss = 2.0 - 2.0 * raymarchIntersection(
+				rayStart,
+				rayEnd - rayStart,
+				dither,
+				4u,
+				4u
+			);
+		
+			sssDepth = mix(sssDepth, 8.0 * max0(0.96 - lmCoord.y) + max0(distantSss), lodGradient);
+		}
+
 		vec3 diffuse = diffuseHammon(material, NoL, NoV, NoH, LoV) * (1.0 - 0.75 * material.sssAmount);
 		vec3 specular = getSpecularHighlight(material, NoL, NoV, NoH, LoV, LoH);
-		vec3 subsurface = getSubsurfaceScattering(material.albedo, material.sssAmount, blockerDepth, LoV);
+		vec3 subsurface = getSubsurfaceScattering(material.albedo, material.sssAmount, sssDepth, LoV);
 
 		radiance += directIrradiance * ((diffuse + specular) * visibility + subsurface) * getCloudShadows(colortex15, scenePos);
 	}

@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 #include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
@@ -57,7 +57,7 @@ void main() {
 		offset = fract(vec2(4.0, 2.0) * texCoord);
 		adjustedCoord = adjustedCoord + vec2(0.25, 0.5) * ((1.0 - offset.yx) - offset);
 		offset = offset * 2.0 - 1.0;
-		if (maxOf(abs(offset)) > 0.25) discard;
+		//if (maxOf(abs(offset)) > 0.25) discard;
 
 		break;
 #endif
@@ -71,5 +71,5 @@ void main() {
 		discard;
 	}
 
-	fragColor.rgb = texture(gtexture, adjustedCoord).rgb;
+	fragColor.rgb = texture(gtexture, texCoord).rgb;
 }

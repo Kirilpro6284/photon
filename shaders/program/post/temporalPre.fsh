@@ -19,13 +19,8 @@ layout (location = 3) out vec4 temporalData; // current frame depth (front/back)
 uniform usampler2D colortex1; // Scene data
 uniform sampler2D  colortex3; // Scene color
 
-uniform sampler2D depthtex0;
-uniform sampler2D depthtex1;
-
-//--// Camera uniforms
-
-uniform float near;
-uniform float far;
+uniform sampler2D lodDepthTex0;
+uniform sampler2D lodDepthTex1;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -34,8 +29,9 @@ uniform float far;
 //--// Functions //-----------------------------------------------------------//
 
 float linearizeDepth(float depth) {
-	// https://wiki.shaderlabs.org/wiki/Shader_tricks#Linearizing_depth
-	return (near * far) / (depth * (near - far) + far);
+	depth *= -2.0;
+
+	return -(lodProjMatInv_2.z * depth + lodProjMatInv_3.z) / (lodProjMatInv_2.w * depth + lodProjMatInv_3.w);
 }
 
 vec3 minOf(vec3 a, vec3 b, vec3 c, vec3 d, vec3 f) {
@@ -49,8 +45,8 @@ vec3 maxOf(vec3 a, vec3 b, vec3 c, vec3 d, vec3 f) {
 void main() {
 	ivec2 texel = ivec2(gl_FragCoord.xy);
 
-	float depth0    = texelFetch(depthtex0, texel, 0).x;
-	float depth1    = texelFetch(depthtex1, texel, 0).x;
+	float depth1    = texelFetch(lodDepthTex1, texel, 0).x;
+	float depth0    = max(depth1, texelFetch(lodDepthTex0, texel, 0).x);
 	uvec4 sceneData = texelFetch(colortex1, texel, 0);
 
     // Fetch 3x3 neighborhood
@@ -109,18 +105,19 @@ void main() {
 
 	// Fetch depth values surrounding the current fragment
 	vec4 depthSamples;
-	depthSamples.x = texelFetch(depthtex0, texel + ivec2( 1,  0), 0).x;
-	depthSamples.y = texelFetch(depthtex0, texel + ivec2( 0,  1), 0).x;
-	depthSamples.z = texelFetch(depthtex0, texel + ivec2(-1,  0), 0).x;
-	depthSamples.w = texelFetch(depthtex0, texel + ivec2( 0, -1), 0).x;
+	depthSamples.x = texelFetch(lodDepthTex1, texel + ivec2( 1,  0), 0).x;
+	depthSamples.y = texelFetch(lodDepthTex1, texel + ivec2( 0,  1), 0).x;
+	depthSamples.z = texelFetch(lodDepthTex1, texel + ivec2(-1,  0), 0).x;
+	depthSamples.w = texelFetch(lodDepthTex1, texel + ivec2( 0, -1), 0).x;
 
-	depthTaaInfo.y = min(depth0, minOf(depthSamples));
-	depthTaaInfo.z = max(depth0, maxOf(depthSamples));
+	depthTaaInfo.y = max(depth1, maxOf(depthSamples));
+	depthTaaInfo.z = min(depth1, minOf(depthSamples));
 
-	// Storing linear depth improves precision for a fixed point buffer
-	depthTaaInfo.y = clamp01(linearizeDepth(depthTaaInfo.y) * rcp(far));
-	depthTaaInfo.z = clamp01(linearizeDepth(depthTaaInfo.z) * rcp(far));
+	uint pack = packHalf2x16(depthTaaInfo.yz);
 
-	temporalData.xy = 1.0 - vec2(depth0, depth1);     // reversed depth
+	depthTaaInfo.y = (pack >> 16u) * rcp(65535.0);
+	depthTaaInfo.z = (pack & 65535u) * rcp(65535.0);
+
+	temporalData.xy = vec2(depth0, depth1);
 	temporalData.zw = unpackUnorm4x8(sceneData.y).zw; // light levels
 }

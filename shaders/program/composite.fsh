@@ -18,70 +18,14 @@ in vec2 coord;
 
 uniform sampler2D colortex0;  // Translucent layer
 uniform sampler2D colortex3;  // Solid layer + sky
-uniform sampler2D colortex4;  // Sky capture
-uniform sampler2D colortex6;  // Sky color
+uniform sampler2D skyCapture;  // Sky capture
+uniform sampler2D colortex7;  // Sky color
 uniform sampler2D colortex9;  // Water mask
-uniform sampler2D colortex11; // Clouds
+uniform sampler2D colortex2; // Clouds
 uniform sampler2D colortex15; // Cloud shadow map
 
-uniform sampler2D depthtex0;
-uniform sampler2D depthtex1;
-
-//--// Camera uniforms
-
-uniform int isEyeInWater;
-
-uniform ivec2 eyeBrightness;
-uniform ivec2 eyeBrightnessSmooth;
-
-uniform float eyeAltitude;
-
-uniform float near;
-uniform float far;
-
-uniform float blindness;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Shadow uniforms
-
-uniform mat4 shadowModelView;
-uniform mat4 shadowModelViewInverse;
-uniform mat4 shadowProjection;
-uniform mat4 shadowProjectionInverse;
-
-//--// Time uniforms
-
-uniform int frameCounter;
-
-uniform int moonPhase;
-
-uniform float frameTimeCounter;
-
-uniform float sunAngle;
-uniform float rainStrength;
-
-//--// Custom uniforms
-
-uniform float biomeCave;
-
-uniform float timeNoon;
-
-uniform float eyeSkylight;
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
-
-uniform vec3 shadowDir;
-uniform vec3 sunDir;
-uniform vec3 moonDir;
+uniform sampler2D lodDepthTex0;
+uniform sampler2D lodDepthTex1;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -104,24 +48,24 @@ void main() {
 
 	/* -- texture fetches -- */
 
-	float frontDepth  = texelFetch(depthtex0,  texel, 0).x;
-	float backDepth   = texelFetch(depthtex1,  texel, 0).x;
+	float backDepth   = texelFetch(lodDepthTex1,  texel, 0).x;
+	float frontDepth  = max(backDepth, texelFetch(lodDepthTex0,  texel, 0).x);
 	radiance          = texelFetch(colortex3,  texel, 0).rgb;
 	vec4 translucents = texelFetch(colortex0,  texel, 0);
 	vec4 waterMask    = texelFetch(colortex9,  texel, 0);
-	vec3 clearSky     = texelFetch(colortex6,  texel, 0).rgb;
-	vec4 clouds       = texelFetch(colortex11, texel, 0);
+	vec3 clearSky     = texelFetch(colortex7,  texel, 0).rgb;
+	vec4 clouds       = texelFetch(colortex2, texel, 0);
 
 	/* -- fetch lighting palette -- */
 
-	vec3 ambientIrradiance = texelFetch(colortex4, ivec2(255, 0), 0).rgb;
-	vec3 directIrradiance  = texelFetch(colortex4, ivec2(255, 1), 0).rgb;
-	vec3 skyIrradiance     = texelFetch(colortex4, ivec2(255, 2), 0).rgb;
+	vec3 ambientIrradiance = texelFetch(skyCapture, ivec2(255, 0), 0).rgb;
+	vec3 directIrradiance  = texelFetch(skyCapture, ivec2(255, 1), 0).rgb;
+	vec3 skyIrradiance     = texelFetch(skyCapture, ivec2(255, 2), 0).rgb;
 
 	/* -- transformations -- */
 
 	vec3 screenPos = vec3(coord, frontDepth);
-	vec3 viewPos   = screenToViewPos(coord, frontDepth);
+	vec3 viewPos   = screenToViewPos(coord, frontDepth, true);
 	vec3 scenePos  = viewToSceneSpace(viewPos);
 
 	float viewerDistance = length(viewPos);
@@ -132,7 +76,7 @@ void main() {
 	if (waterMask.a > 0.5) {
 		vec2 normalTangentXy       = unpackUnorm2x8(waterMask.x) * 2.0 - 1.0;
 		vec2 lightingInfo          = unpackUnorm2x8(waterMask.y);
-		float distanceToWater      = waterMask.z * far;
+		float distanceToWater      = waterMask.z * renderDistance;
 
 		// water refraction
 
@@ -141,8 +85,8 @@ void main() {
 		vec2 refractedCoord = coord + normalTangentXy * (refractionStrength * rcp(max(distanceToWater, 1.0)));
 
 		radiance         = texture(colortex3, refractedCoord).rgb;
-		backDepth        = texture(depthtex1, refractedCoord * renderScale).x;
-		vec3 backPosView = screenToViewPos(refractedCoord, backDepth);
+		backDepth        = texture(lodDepthTex1, refractedCoord * renderScale).x;
+		vec3 backPosView = screenToViewPos(refractedCoord, backDepth, true);
 #endif
 
 		// water volume
@@ -173,7 +117,7 @@ void main() {
 
 	/* -- blend with clouds -- */
 
-	if (backDepth < 1.0 && clouds.w < viewerDistance * CLOUDS_SCALE) {
+	if (backDepth > 0.0 && clouds.w < viewerDistance * CLOUDS_SCALE) {
 		vec3 cloudsScattering = mat2x3(directIrradiance, skyIrradiance) * clouds.xy;
 
 		radiance = radiance * clouds.z + cloudsScattering;

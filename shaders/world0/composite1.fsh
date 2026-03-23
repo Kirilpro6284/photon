@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 
 /*
  * Program description:
@@ -9,9 +9,9 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 6,7 */
-layout (location = 0) out vec3 fogScattering;
-layout (location = 1) out vec3 fogTransmittance;
+/* RENDERTARGETS: 7,6 */
+layout (location = 0) out vec4 fogScattering;
+layout (location = 1) out vec4 fogTransmittance;
 
 //--// Inputs //--------------------------------------------------------------//
 
@@ -26,66 +26,14 @@ uniform sampler2D noisetex;
 
 uniform sampler2D colortex15; // Cloud shadow map
 
-uniform sampler2D depthtex0;
+uniform sampler2D lodDepthTex0;
+uniform sampler2D lodDepthTex1;
 
 uniform sampler3D colortex10; // 3D worley noise
 
 #ifdef SHADOW
 uniform sampler2D shadowtex1;
 #endif
-
-//--// Camera uniforms
-
-uniform int isEyeInWater;
-
-uniform ivec2 eyeBrightness;
-
-uniform float eyeAltitude;
-
-uniform float near;
-uniform float far;
-
-uniform float blindness;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Shadow uniforms
-
-uniform mat4 shadowModelView;
-uniform mat4 shadowModelViewInverse;
-
-//--// Time uniforms
-
-uniform int frameCounter;
-
-uniform float rainStrength;
-
-//--// Custom uniforms
-
-uniform float eyeSkylight;
-
-uniform float biomeCave;
-uniform float biomeMayRain;
-
-uniform float timeSunrise;
-uniform float timeNoon;
-uniform float timeSunset;
-uniform float timeMidnight;
-
-uniform float desertSandstorm;
-uniform float lightningFlash;
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
-
-uniform vec3 shadowDir;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -165,7 +113,7 @@ mat2x3 raymarchFog(vec3 worldStartPos, vec3 worldEndPos, bool isSky, float dithe
 	if (distanceToVolumeEnd < 0.0) return mat2x3(vec3(0.0), vec3(1.0)); // Did not intersect volume
 
 	rayLength = isSky ? distanceToVolumeEnd : rayLength;
-	rayLength = clamp(rayLength - distanceToVolumeStart, 0.0, far);
+	rayLength = clamp(rayLength - distanceToVolumeStart, 0.0, min(renderDistance, 1024.0));
 
 	uint stepCount = uint(float(fogMinStepCount) + fogStepCountGrowth * rayLength);
 	     stepCount = clamp(stepCount, fogMinStepCount, fogMaxStepCount);
@@ -278,9 +226,9 @@ void main() {
 
 	if (clamp(viewTexel, ivec2(0), ivec2(viewSize)) != viewTexel) discard;
 
-	float depth = texelFetch(depthtex0, viewTexel, 0).x;
+	float depth = max(texelFetch(lodDepthTex0, viewTexel, 0).x, texelFetch(lodDepthTex1, viewTexel, 0).x);
 
-	vec3 viewPos  = screenToViewPos(coord * rcp(fogRenderScale), depth);
+	vec3 viewPos  = screenToViewPos(coord * rcp(fogRenderScale), depth, true);
 	vec3 scenePos = viewToSceneSpace(viewPos);
 	vec3 worldPos = scenePos + cameraPosition;
 
@@ -323,6 +271,6 @@ void main() {
 			break;
 	}
 
-	fogScattering    = fogData[0] * (1.0 - blindness);
-	fogTransmittance = fogData[1];
+	fogScattering = vec4(fogData[0] * (1.0 - blindness), 1.0);
+	fogTransmittance = vec4(fogData[1], 1.0);
 }

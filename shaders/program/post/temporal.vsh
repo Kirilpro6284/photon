@@ -26,11 +26,6 @@ flat out float histogramSelectedBin;
 uniform sampler2D colortex3; // Scene color
 uniform sampler2D colortex8; // Scene history
 
-uniform float frameTime;
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
 //--// Includes //------------------------------------------------------------//
 
 #include "/include/utility/color.glsl"

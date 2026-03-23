@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 
 /*
  * Program description:
@@ -9,8 +9,6 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-out vec2 coord;
-
 flat out vec3 weather;
 flat out vec3 cloudsDirectIrradiance;
 
@@ -20,50 +18,13 @@ flat out vec3 skyIrradiance;
 
 //--// Uniforms //------------------------------------------------------------//
 
-uniform sampler3D colortex2; // Atmosphere scattering LUT
-
-//--// Camera uniforms
-
-uniform ivec2 eyeBrightnessSmooth;
-
-uniform vec3 cameraPosition;
-
-//--// Time uniforms
-
-uniform int worldDay;
-uniform int worldTime;
-
-uniform float frameTimeCounter;
-
-uniform float rainStrength;
-uniform float wetness;
-
-uniform float sunAngle;
-
-//--// Custom uniforms
-
-uniform bool cloudsMoonlit;
-
-uniform float biomeTemperature;
-uniform float biomeHumidity;
-uniform float biomeMayRain;
-
-uniform float timeSunset;
-uniform float timeNoon;
-uniform float timeSunrise;
-uniform float timeMidnight;
-
-uniform float moonPhaseBrightness;
-
-uniform vec3 shadowDir;
-uniform vec3 sunDir;
-uniform vec3 moonDir;
+uniform sampler3D colortex9; // Atmosphere scattering LUT
 
 //--// Includes //------------------------------------------------------------//
 
 #define WORLD_OVERWORLD
 
-#define ATMOSPHERE_SCATTERING_LUT colortex2
+#define ATMOSPHERE_SCATTERING_LUT colortex9
 
 #include "/include/atmospherics/palette.glsl"
 #include "/include/atmospherics/weather.glsl"
@@ -71,8 +32,6 @@ uniform vec3 moonDir;
 //--// Functions //-----------------------------------------------------------//
 
 void main() {
-	coord = gl_MultiTexCoord0.xy;
-
 	weather = getWeather();
 
 	vec3 rayOrigin = vec3(0.0, planetRadius, 0.0);

@@ -1,2 +1,2 @@
-#version 410 compatibility
+#version 430 compatibility
 #include "/program/vertexSimple.vsh"

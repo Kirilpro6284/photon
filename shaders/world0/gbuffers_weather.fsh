@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 #include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
@@ -20,17 +20,7 @@ in vec4 tint;
 
 uniform sampler2D gtexture;
 
-uniform sampler2D colortex4; // Sky capture
-
-//--// Time uniforms
-
-uniform int frameCounter;
-
-//--// Custom uniforms
-
-uniform float eyeSkylight;
-
-uniform vec2 viewTexelSize;
+uniform sampler2D skyCapture; // Sky capture
 
 //--// Includes //------------------------------------------------------------//
 
@@ -66,8 +56,8 @@ void main() {
 
 	/* -- fetch lighting palette -- */
 
-	vec3 directIrradiance  = texelFetch(colortex4, ivec2(255, 1), 0).rgb;
-	vec3 skyIrradiance     = texelFetch(colortex4, ivec2(255, 2), 0).rgb;
+	vec3 directIrradiance  = texelFetch(skyCapture, ivec2(255, 1), 0).rgb;
+	vec3 skyIrradiance     = texelFetch(skyCapture, ivec2(255, 2), 0).rgb;
 
 	/* -- lighting -- */
 

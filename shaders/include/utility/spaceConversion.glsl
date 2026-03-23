@@ -2,28 +2,33 @@
 #define INCLUDE_UTILITY_SPACECONVERSION
 
 float linearizeDepth(float depth) {
-	// https://wiki.shaderlabs.org/wiki/Shader_tricks#Linearizing_depth
-	return (near * far) / (depth * (near - far) + far);
+	depth *= -2.0;
+
+	return -(lodProjMatInv_2.z * depth + lodProjMatInv_3.z) / (lodProjMatInv_2.w * depth + lodProjMatInv_3.w);
 }
 
 float reverseLinearDepth(float linearZ) {
-	return (far + near) / (far - near) + (2.0 * far * near) / (linearZ * (far - near));
+	return -0.5 * (lodProjMat_2.z * -linearZ + lodProjMat_3.z) / (lodProjMat_2.w * -linearZ);
 }
 
-vec3 screenToViewPos (vec2 uv, float depth) {
-	vec3 ndc = vec3(uv, depth) * 2.0 - 1.0;
+vec3 screenToViewPos (vec2 uv, float depth, bool handleJitter) {
+	vec3 ndc = vec3(uv * 2.0 - 1.0, depth * -2.0);
 
-	return projectAndDivide(gbufferProjectionInverse, vec3(ndc.xy - taa_offset, ndc.z));
+#ifdef TAA
+	if (handleJitter) ndc.xy -= taa_offset;
+#endif
+
+	return projectAndDivide(lodProjMatInv0, vec3(ndc.xy, ndc.z));
 }
 
 vec3 viewToScreenSpace(vec3 viewPos, bool handleJitter) {
-	vec3 positionNdc = projectAndDivide(gbufferProjection, viewPos);
+	vec3 ndc = projectAndDivide(lodProjMat0, viewPos);
 
 #ifdef TAA
-	if (handleJitter) positionNdc.xy += taa_offset;
+	if (handleJitter) ndc.xy += taa_offset;
 #endif
 
-	return positionNdc * 0.5 + 0.5;
+	return vec3(ndc.xy * 0.5 + 0.5, ndc.z * -0.5);
 }
 
 vec3 viewToSceneSpace(vec3 viewPos) {
@@ -41,24 +46,20 @@ mat3 getTbnMatrix(vec3 normal) {
 }
 
 #if defined TEMPORAL_REPROJECTION
-vec3 reprojectSceneSpace(vec3 scenePos, bool isHand) {
-	vec3 cameraOffset = isHand
-		? vec3(0.0)
-		: cameraPosition - previousCameraPosition;
+vec3 reprojectSceneSpace(vec3 scenePos) {
+	vec3 cameraOffset = step(0.08, dot(scenePos, scenePos)) * cameraVelocity;
 
 	vec3 previousPos = transform(gbufferPreviousModelView, scenePos + cameraOffset);
-	     previousPos = projectAndDivide(gbufferPreviousProjection, previousPos);
+	     previousPos = projectAndDivide(lodProjMatPrev0, previousPos);
 
-	return previousPos * 0.5 + 0.5;
+	return vec3(previousPos.xy * 0.5 + 0.5, previousPos.z * -0.5);
 }
 
 vec3 reproject(vec3 screenPos) {
-	vec3 pos = projectAndDivide(gbufferProjectionInverse, screenPos * 2.0 - 1.0);
+	vec3 pos = projectAndDivide(lodProjMatInv0, vec3(screenPos.xy * 2.0 - 1.0, screenPos.z * -2.0));
 	     pos = viewToSceneSpace(pos);
 
-	bool isHand = screenPos.z < handDepth;
-
-	return reprojectSceneSpace(pos, isHand);
+	return reprojectSceneSpace(pos);
 }
 #endif
 

@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 #include "/include/main.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
@@ -10,29 +10,19 @@ flat out vec3 skyIrradiance;
 
 //--// Uniforms //------------------------------------------------------------//
 
-uniform sampler2D colortex4; // Sky capture, lighting color palette,
-
-uniform int worldTime;
-
-//--// Custom uniforms
-
-uniform bool cloudsMoonlit;
-
-uniform float moonPhaseBrightness;
-
-uniform vec3 sunDir;
-uniform vec3 moonDir;
+uniform sampler2D skyCapture; // Sky capture, lighting color palette,
 
 //--// Includes //------------------------------------------------------------//
 
 #include "/include/atmospherics/atmosphere.glsl"
+#include "/include/utility/encoding.glsl"
 
 //--// Functions //-----------------------------------------------------------//
 
 void main() {
 	coord = gl_MultiTexCoord0.xy;
 
-	skyIrradiance = texelFetch(colortex4, ivec2(255, 2), 0).rgb;
+	skyIrradiance = texelFetch(skyCapture, ivec2(255, 2), 0).rgb;
 
 	vec3 rayOrigin = vec3(0.0, planetRadius, 0.0);
 	vec3 rayDir = cloudsMoonlit ? moonDir : sunDir;

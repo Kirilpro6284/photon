@@ -28,34 +28,7 @@ uniform sampler2D noisetex;
 uniform usampler2D colortex1; // Scene data
 uniform sampler2D colortex15; // Reprojected scene history
 
-uniform sampler2D depthtex1;
-
-//--// Camera uniforms
-
-uniform float aspectRatio;
-
-uniform float near;
-uniform float far;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Time uniforms
-
-uniform int frameCounter;
-
-//--// Custom uniforms
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
-
-uniform bool worldAgeChanged;
+uniform sampler2D lodDepthTex1;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -118,11 +91,11 @@ vec4 horizonSearch(
 	for (int i = 0; i < stepCount; ++i, rayPos += rayStep) {
 		vec2 ditheredPos = rayPos + rayStep * stepGrowth * dither;
 
-		float depth = texelFetch(depthtex1, ivec2(ditheredPos * viewSize - 0.5), 0).x;
+		float depth = texelFetch(lodDepthTex1, ivec2(ditheredPos * viewSize - 0.5), 0).x;
 
-		if (depth == screenPos.z || depth == 1.0 || depth < handDepth) continue;
+		if (depth == screenPos.z || depth == 0.0 || depth < handDepth) continue;
 
-		vec3 offset = screenToViewPos(ditheredPos, depth) - viewPos;
+		vec3 offset = screenToViewPos(ditheredPos, depth, true) - viewPos;
 
 		float lenSq = lengthSquared(offset);
 		float cosTheta = dot(viewerDir, offset) * inversesqrt(lenSq);
@@ -221,17 +194,17 @@ void main() {
 
 	/* -- texture fetches -- */
 
-	float depth   = texelFetch(depthtex1, viewTexel, 0).x;
+	float depth   = texelFetch(lodDepthTex1, viewTexel, 0).x;
 	uvec3 encoded = texelFetch(colortex1, viewTexel, 0).xyz;
 	vec2 dither   = vec2(texelFetch(noisetex, texel & 511, 0).b, texelFetch(noisetex, (texel + 249) & 511, 0).b);
 
-	if (depth == 1.0) { data = vec4(0.0); return; }
-	if (depth < handDepth) depth += 0.38; // Hand lighting fix from Capt Tatsu
+	if (depth == 0.0) { data = vec4(0.0); return; }
+	//if (depth < handDepth) depth += 0.38; // Hand lighting fix from Capt Tatsu
 
 	/* -- transformations  -- */
 
 	vec3 screenPos = vec3(coord, depth);
-	vec3 viewPos = screenToViewPos(coord, depth);
+	vec3 viewPos = screenToViewPos(coord, depth, true);
 	vec3 viewerDir = normalize(viewPos);
 
 	/* -- unpack gbuffer  -- */
@@ -280,6 +253,6 @@ void main() {
 
 	data.x = packUnorm2x8(irradianceRgbe8.xy);
 	data.y = packUnorm2x8(irradianceRgbe8.zw);
-	data.z = clamp01(linearizeDepth(depth) * rcp(far));
+	data.z = clamp01(linearizeDepth(depth) * rcp(renderDistance));
 	data.w = packUnorm2x8(encodedNormal);
 }

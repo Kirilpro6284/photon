@@ -1,4 +1,4 @@
-#version 410 compatibility
+#version 430 compatibility
 
 /*
  * Program description:
@@ -9,7 +9,7 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 3,6,11,12 */
+/* RENDERTARGETS: 3,7,2,4 */
 layout (location = 0) out vec3 radiance;
 layout (location = 1) out vec3 atmosphereScattering;
 layout (location = 2) out vec4 cloudsHistory;
@@ -26,77 +26,19 @@ flat in vec3 skyIrradiance;
 
 uniform sampler2D colortex0;  // Vanilla sky (sun, moon and custom skies)
 uniform sampler2D colortex5;  // New cloud sample
-uniform sampler2D colortex11; // Clouds history
-uniform usampler2D colortex12; // Clouds pixel age
+uniform sampler2D colortex2; // Clouds history
+uniform usampler2D colortex4; // Clouds pixel age
 uniform sampler2D colortex13; // Previous frame depth
 
-uniform sampler3D colortex2; // Atmosphere scattering LUT
+uniform sampler3D colortex9; // Atmosphere scattering LUT
 
-uniform sampler2D depthtex1;
-
-//--// Camera uniforms
-
-uniform int isEyeInWater;
-
-uniform float eyeAltitude;
-
-uniform float near;
-uniform float far;
-
-uniform float blindness;
-
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-uniform mat4 gbufferPreviousModelView;
-uniform mat4 gbufferPreviousProjection;
-
-//--// Shadow uniforms
-
-uniform mat4 shadowModelView;
-
-//--// Time uniforms
-
-uniform int frameCounter;
-
-uniform int worldTime;
-
-uniform int moonPhase;
-
-uniform float frameTime;
-
-uniform float sunAngle;
-
-//--// Custom uniforms
-
-uniform bool cloudsMoonlit;
-uniform bool worldAgeChanged;
-
-uniform float biomeCave;
-
-uniform float timeNoon;
-
-uniform float lightningFlash;
-uniform float moonPhaseBrightness;
-
-uniform vec2 viewSize;
-uniform vec2 viewTexelSize;
-
-uniform vec2 taa_offset;
-
-uniform vec3 sunDir;
-uniform vec3 moonDir;
+uniform sampler2D lodDepthTex1;
 
 //--// Includes //------------------------------------------------------------//
 
 #define WORLD_OVERWORLD
 
-#define ATMOSPHERE_SCATTERING_LUT colortex2
+#define ATMOSPHERE_SCATTERING_LUT colortex9
 
 #include "/block.properties"
 #include "/entity.properties"
@@ -131,7 +73,7 @@ vec3 reprojectClouds(vec2 coord, float distanceToCloud) {
 	     pos = mat3(gbufferModelViewInverse) * pos;
 	     pos = normalize(pos) * distanceToCloud * rcp(CLOUDS_SCALE);
 
-	vec3 velocity  = previousCameraPosition - cameraPosition;
+	vec3 velocity  = -cameraVelocity;
 	     velocity += windSpeed * frameTime * vec3(cos(windAngle), sin(windAngle), 0.0).xzy;
 
 	vec3 previousPos = transform(gbufferPreviousModelView, pos + gbufferModelViewInverse[3].xyz - velocity);
@@ -202,7 +144,7 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	vec2 velocity = (coord - previousCoord) * viewSize;
 
 	vec4 current = e * currentScale;
-	vec4 history = textureCatmullRom(colortex11, previousCoordClamped);
+	vec4 history = textureCatmullRom(colortex2, previousCoordClamped);
 	vec4 historyClamped = clamp(history, aabbMin, aabbMax);
 
 	// Only clamp when moving fast or when close to or above clouds
@@ -214,11 +156,11 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	bool offscreen = clamp01(previousCoord.xy) != previousCoord.xy;
 
 	float historyDepth = texture(colortex13, previousCoordClamped).y;
-	bool disoccluded = positionScreen.z == 1.0 && historyDepth > eps;
+	bool disoccluded = positionScreen.z == 0.0 && historyDepth > eps;
 
 	bool invalidHistory = offscreen || disoccluded || worldAgeChanged || any(isnan(history)) || any(isinf(history));
 
-	uint pixelAge = texelFetch(colortex12, ivec2(previousCoord * viewSize * cloudsRenderScale), 0).x;
+	uint pixelAge = texelFetch(colortex4, ivec2(previousCoord * viewSize * cloudsRenderScale), 0).x;
 
 	if (invalidHistory) {
 		current = history = textureBicubic(colortex5, coord * cloudsRenderScale) * currentScale;
@@ -229,7 +171,7 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	float historyWeight = min(x / (x + 1.0), CLOUDS_ACCUMULATION_LIMIT);
 
 	// Soften history sample for newer pixels
-	vec4 historySmooth = textureBicubic(colortex11, previousCoordClamped);
+	vec4 historySmooth = textureBicubic(colortex2, previousCoordClamped);
 	     historySmooth = mix(historySmooth, history, clamp01(historyWeight));
 		 historySmooth = invalidHistory ? history : mix(historySmooth, clamp(historySmooth, aabbMin, aabbMax), clampingStrength);
 
@@ -258,10 +200,10 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 void main() {
 	ivec2 texel = ivec2(gl_FragCoord.xy);
 
-	float depth = texelFetch(depthtex1, texel, 0).x;
+	float depth = texelFetch(lodDepthTex1, texel, 0).x;
 
 	vec3 positionScreen = vec3(coord, 1.0);
-	vec3 positionView = screenToViewPos(coord, 1.0);
+	vec3 positionView = screenToViewPos(coord, 1.0, true);
 	vec3 rayDir = mat3(gbufferModelViewInverse) * normalize(positionView);
 
 	vec4 cloudData = upscaleClouds(texel, vec3(coord, depth));
@@ -269,43 +211,44 @@ void main() {
 	atmosphereScattering = sunIrradiance * getAtmosphereScattering(rayDir, sunDir)
 	                     + moonIrradiance * getAtmosphereScattering(rayDir, moonDir) * moonPhaseBrightness;
 
-	if (depth != 1.0) return;
-
-	/* -- space -- */
-
 	radiance = vec3(0.0);
 
-	vec4 vanillaSky = texelFetch(colortex0, ivec2(gl_FragCoord.xy), 0); // Sun, moon and custom skies
-	vec3 vanillaSkyColor = srgbToLinear(vanillaSky.rgb) * r709ToAp1Unlit;
-	uint vanillaSkyId = uint(vanillaSky.a + 0.5);
+	if (depth == 0.0) {
 
-#ifdef VANILLA_SUN
-	if (vanillaSkyId == 2) {
-		const vec3 brightnessScale = 5.0 * sunIrradiance;
-		radiance += vanillaSkyColor * brightnessScale;
+		/* -- space -- */
+
+		vec4 vanillaSky = texelFetch(colortex0, ivec2(gl_FragCoord.xy), 0); // Sun, moon and custom skies
+		vec3 vanillaSkyColor = srgbToLinear(vanillaSky.rgb) * r709ToAp1Unlit;
+		uint vanillaSkyId = uint(vanillaSky.a + 0.5);
+
+	#ifdef VANILLA_SUN
+		if (vanillaSkyId == 2) {
+			const vec3 brightnessScale = 5.0 * sunIrradiance;
+			radiance += vanillaSkyColor * brightnessScale;
+		}
+	#else
+		radiance += drawSun(rayDir);
+	#endif
+
+	#ifdef VANILLA_MOON
+		if (vanillaSkyId == 3) {
+			const vec3 brightnessScale = 5.0 * moonIrradiance;
+			radiance += vanillaSkyColor * brightnessScale;
+		}
+	#else
+		radiance += drawMoon(rayDir);
+	#endif
+
+	#ifdef STARS
+		radiance += drawStars(rayDir);
+	#endif
+
+		/* -- atmosphere -- */
+
+		vec3 atmosphereTransmittance = getAtmosphereTransmittance(rayDir.y, planetRadius);
+
+		radiance = radiance * atmosphereTransmittance + atmosphereScattering;
 	}
-#else
-	radiance += drawSun(rayDir);
-#endif
-
-#ifdef VANILLA_MOON
-	if (vanillaSkyId == 3) {
-		const vec3 brightnessScale = 5.0 * moonIrradiance;
-		radiance += vanillaSkyColor * brightnessScale;
-	}
-#else
-	radiance += drawMoon(rayDir);
-#endif
-
-#ifdef STARS
-	radiance += drawStars(rayDir);
-#endif
-
-	/* -- atmosphere -- */
-
-	vec3 atmosphereTransmittance = getAtmosphereTransmittance(rayDir.y, planetRadius);
-
-	radiance = radiance * atmosphereTransmittance + atmosphereScattering;
 
 	/* -- clouds -- */
 
@@ -314,9 +257,7 @@ void main() {
 	vec3 cloudsScattering = mat2x3(directIrradiance, skyIrradiance + cloudsLightningFlash * lightningFlash) * cloudData.xy;
 	     cloudsScattering = cloudsAerialPerspective(cloudsScattering, cloudData.rgb, rayDir, atmosphereScattering, cloudData.w);
 
-	#define cloudsTransmittance cloudData.z
-
-	radiance = radiance * cloudsTransmittance + cloudsScattering;
+	radiance = radiance * cloudData.z + cloudsScattering;
 
 	// fade lower part of sky into cave fog color when underground so that the sky isn't visible
 	// beyond the render distance

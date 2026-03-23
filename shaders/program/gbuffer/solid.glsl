@@ -4,10 +4,13 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 1 */
+/* RENDERTARGETS: 1,12 */
 layout (location = 0) out uvec4 encoded;
+layout (location = 1) out vec4 fragDepth;
 
 //--// Inputs //--------------------------------------------------------------//
+
+noperspective in float reversedDepth;
 
 in vec2 texCoord;
 in vec2 lmCoord;
@@ -38,14 +41,6 @@ uniform int entityId;
 #endif
 
 uniform float alphaTestRef = 0.1;
-
-//--// Time uniforms
-
-uniform int frameCounter;
-
-//--// Custom uniforms
-
-uniform vec2 viewTexelSize;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -114,6 +109,8 @@ void main() {
 	encoded.w = packUnorm4x8(specularTex);
 #endif
 
+	fragDepth = vec4(reversedDepth * -0.5, 0.0, 0.0, 1.0);
+
 #if defined PROGRAM_GBUFFERS_BEACONBEAM
 	// Discard the translucent edge part of the beam
 	if (baseTex.a < 0.99) discard;
@@ -132,6 +129,8 @@ void main() {
 
 //--// Outputs //-------------------------------------------------------------//
 
+noperspective out float reversedDepth;
+
 out vec2 texCoord;
 out vec2 lmCoord;
 out vec4 tint;
@@ -148,28 +147,6 @@ attribute vec2 mc_midTexCoord;
 //--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D noisetex;
-
-//--// Camera uniforms
-
-uniform float near;
-uniform float far;
-
-uniform vec3 cameraPosition;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-
-//--// Time uniforms
-
-uniform float frameTimeCounter;
-
-uniform float rainStrength;
-
-//--// Custom uniforms
-
-uniform vec2 taa_offset;
 
 //--// Includes //------------------------------------------------------------//
 
@@ -203,6 +180,8 @@ void main() {
 
 	viewPos = sceneToViewSpace(scenePos);
 #endif
+
+	reversedDepth = (lodProjMat_2.z * viewPos.z + lodProjMat_3.z) / (lodProjMat_2.w * viewPos.z);
 
 	vec4 clipPos = project(gl_ProjectionMatrix, viewPos);
 
