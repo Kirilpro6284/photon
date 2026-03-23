@@ -48,6 +48,7 @@
     "colortex7": "sampler2D",
     "colortex8": "sampler2D",
     "colortex12": "sampler2D",
+    "colortex13": "sampler3D",
     "colortex15": "sampler2D",
     "shadowtex0": "sampler2D",
     "shadowtex1HW": "sampler2DShadow",

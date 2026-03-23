@@ -34,6 +34,10 @@ layout (location = 2) out vec4 fragDepth;
 #include "/block.properties"
 #include "/entity.properties"
 
+#define ATMOSPHERE_SCATTERING_LUT colortex13
+
+#include "/include/atmospherics/atmosphere.glsl"
+
 #include "/include/fragment/aces/matrices.glsl"
 #include "/include/fragment/fog.glsl"
 #include "/include/fragment/material.glsl"
@@ -175,7 +179,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 
     /* -- fog -- */
 
-	vec3 clearSky = vec3(1.0);
+	vec3 clearSky = getAtmosphereScattering(normalize(-viewerDir), sunDir);
 	fragColor.rgb = applyFog(fragColor.rgb, scenePos, clearSky);
 
 	/* -- set water mask -- */
