@@ -44,6 +44,7 @@ uniform float wetness;
 
 //--// Custom uniforms
 
+uniform bool advanceTime;
 uniform bool cloudsMoonlit;
 uniform bool worldAgeChanged;
 

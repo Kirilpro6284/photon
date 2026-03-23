@@ -102,17 +102,15 @@ vec3 getSceneLighting(
 		float NoH = (NoL + NoV) * halfwayNorm;
 		float LoH = LoV * halfwayNorm + halfwayNorm;
 
-		float lodGradient = smoothstep(0.8, 0.95, length(scenePos) / min(far, shadowDistance));
+		float lodGradient = smoothstep(0.9, 1.0, length(scenePos) / min(far, shadowDistance));
 
 		float sssDepth = blockerDepth;
 		
 		if (lodGradient > 0.0) {
-			vec3 viewNormal = mat3(gbufferModelView) * geometryNormal;
+			vec3 rayStart = viewToScreenSpace(viewPos + 2.0 * viewShadowDir - 0.2 * gbufferModelView[1].xyz, true);
+			vec3 rayEnd = viewToScreenSpace(viewPos - 0.2 * gbufferModelView[1].xyz, true);
 
-			vec3 rayStart = viewToScreenSpace(viewPos + 2.0 * viewShadowDir - viewNormal * 0.2, true);
-			vec3 rayEnd = viewToScreenSpace(viewPos - viewNormal * 0.2, true);
-
-			float distantSss = 2.0 - 2.0 * raymarchIntersection(
+			float distantSss = raymarchIntersection(
 				rayStart,
 				rayEnd - rayStart,
 				dither,
@@ -120,7 +118,7 @@ vec3 getSceneLighting(
 				4u
 			);
 		
-			sssDepth = mix(sssDepth, 8.0 * max0(0.96 - lmCoord.y) + max0(distantSss), lodGradient);
+			sssDepth = mix(sssDepth, 8.0 * max0(0.96 - lmCoord.y) + max(0.05, (1.25 - distantSss) * step(distantSss, 0.999)), lodGradient);
 		}
 
 		vec3 diffuse = diffuseHammon(material, NoL, NoV, NoH, LoV) * (1.0 - 0.75 * material.sssAmount);

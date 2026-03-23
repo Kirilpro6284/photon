@@ -74,7 +74,8 @@ vec3 reprojectClouds(vec2 coord, float distanceToCloud) {
 	     pos = normalize(pos) * distanceToCloud * rcp(CLOUDS_SCALE);
 
 	vec3 velocity  = -cameraVelocity;
-	     velocity += windSpeed * frameTime * vec3(cos(windAngle), sin(windAngle), 0.0).xzy;
+	     
+	if (advanceTime) velocity += windSpeed * frameTime * vec3(cos(windAngle), sin(windAngle), 0.0).xzy;
 
 	vec3 previousPos = transform(gbufferPreviousModelView, pos + gbufferModelViewInverse[3].xyz - velocity);
 	     previousPos = projectAndDivide(gbufferPreviousProjection, previousPos);
@@ -184,8 +185,10 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 		pixelAge = 0;
 	}
 
+	float accumulationLimit = mix(CLOUDS_MIN_ACCUMULATION_LIMIT, CLOUDS_MAX_ACCUMULATION_LIMIT, clampingStrength);
+
 	float x = float(pixelAge);
-	float historyWeight = min(x / (x + 1.0), CLOUDS_ACCUMULATION_LIMIT);
+	float historyWeight = min(x / (x + 1.0), accumulationLimit);
 
 	// Soften history sample for newer pixels
 	vec4 historySmooth = textureBicubic(colortex2, previousCoordClamped);

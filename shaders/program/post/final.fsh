@@ -181,5 +181,5 @@ void main() {
 
     uvec4 encoded = texelFetch(colortex1, texel, 0);
 
-  //  fragColor = texelFetch(colortex16, texel, 0).rgb;
+  //  fragColor = vec3(advanceTime);
 }
