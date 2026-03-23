@@ -166,7 +166,7 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	vec4 historyClamped = clamp(history, aabbMin, aabbMax);
 
 	// Only clamp when moving fast or when close to or above clouds
-	float clampingStrength = smoothstep(0.8 * CLOUDS_LAYER0_ALTITUDE, CLOUDS_LAYER0_ALTITUDE, CLOUDS_SCALE * (eyeAltitude - SEA_LEVEL));
+	float clampingStrength = smoothstep(-4.0, 2.0, length(cameraVelocity)) * smoothstep(0.8 * CLOUDS_LAYER0_ALTITUDE, CLOUDS_LAYER0_ALTITUDE, CLOUDS_SCALE * (eyeAltitude - SEA_LEVEL));
 	      clampingStrength = clamp01(clampingStrength);
 
 	history = mix(history, historyClamped, clampingStrength);

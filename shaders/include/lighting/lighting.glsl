@@ -71,7 +71,8 @@ vec3 getSceneLighting(
 	vec2 lmCoord,
 	float dither,
 	float ao,
-	uint blockId
+	uint blockId,
+	out float sssDepth
 ) {
 	ao = 1.0;
 	vec3 radiance = material.emission * emissionIntensity;
@@ -89,8 +90,6 @@ vec3 getSceneLighting(
 
 	vec3 shadowViewPos = transform(shadowModelView, scenePos);
 
-	//float dither = getInterleavedGradientNoise();
-
 	float blockerDepth = getBlockerDepth(shadowViewPos, dither);
 
 	vec3 visibility = NoL * calculateShadows(shadowViewPos, geometryNormal, blockId, cloudShadow, lmCoord.y, NoL, dither, blockerDepth);
@@ -104,7 +103,7 @@ vec3 getSceneLighting(
 
 		float lodGradient = smoothstep(0.9, 1.0, length(scenePos) / min(far, shadowDistance));
 
-		float sssDepth = blockerDepth;
+		sssDepth = blockerDepth;
 		
 		if (lodGradient > 0.0) {
 			vec3 rayStart = viewToScreenSpace(viewPos + 2.0 * viewShadowDir - 0.2 * gbufferModelView[1].xyz, true);
@@ -125,7 +124,7 @@ vec3 getSceneLighting(
 		vec3 specular = getSpecularHighlight(material, NoL, NoV, NoH, LoV, LoH);
 		vec3 subsurface = getSubsurfaceScattering(material.albedo, material.sssAmount, sssDepth, LoV);
 
-		radiance += directIrradiance * ((diffuse + specular) * visibility + subsurface) * getCloudShadows(colortex15, scenePos);
+		radiance += directIrradiance * ((diffuse + specular) * visibility + subsurface) * cloudShadow;
 	}
 #endif
 

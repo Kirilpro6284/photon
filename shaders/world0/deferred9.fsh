@@ -41,12 +41,15 @@ void main() {
 
 	ivec2 texel = ivec2(gl_FragCoord.xy);
 
-	vec2 coord = gl_FragCoord.xy * rcp(vec2(cloudShadowRes));
+	vec2 coord = gl_FragCoord.xy * rcp(vec2(cloudShadowMapRes));
 
 	if (clamp01(coord) != coord) discard;
 
-	vec3 rayOrigin = unprojectCloudShadowmap(coord);
-	     rayOrigin = vec3(rayOrigin.xz, rayOrigin.y + eyeAltitude - SEA_LEVEL).xzy * CLOUDS_SCALE + vec3(0.0, planetRadius, 0.0);
+	uint cascade = uint(dot(floor(coord * 2.0), vec2(1.0, 2.0)));
+
+	vec3 rayOrigin = unprojectCloudShadowMap(fract(coord * 2.0), cascade);
+	     rayOrigin = vec3(rayOrigin.x, rayOrigin.y + eyeAltitude - SEA_LEVEL, rayOrigin.z) * CLOUDS_SCALE + vec3(0.0, planetRadius, 0.0);
+		 rayOrigin += shadowDir * (SEA_LEVEL + CLOUDS_LAYER0_ALTITUDE + planetRadius - 250.0 - rayOrigin.y) / max(0.05, shadowDir.y);
 
 	cloudShadow = getCloudShadows(rayOrigin, shadowDir);
 }

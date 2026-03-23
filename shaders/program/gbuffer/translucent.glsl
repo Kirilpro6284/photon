@@ -187,9 +187,10 @@ void main() {
 		ambientIrradiance,
 		skyIrradiance,
 		lmCoord,
-		materialAo,
 		getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter),
-		blockId
+		materialAo,
+		blockId,
+		sssDepth
 	);
 
 	/* -- reflections -- */

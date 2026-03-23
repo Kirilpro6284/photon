@@ -39,7 +39,7 @@ const int colortex17Format = RGBA16;
 const int shadowcolor0Format = R11F_G11F_B10F;
 
 const bool colortex0Clear  = true;
-const bool colortex1Clear  = false;
+const bool colortex1Clear  = true;
 const bool colortex2Clear  = false;
 const bool colortex3Clear  = false;
 const bool colortex4Clear  = false;

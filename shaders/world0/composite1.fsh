@@ -56,7 +56,7 @@ const uint fogMaxStepCount     = 25;
 const float fogStepCountGrowth = 0.1;
 const float fogScale           = 100.0 * AIR_FOG_DENSITY;
 const vec2 fogFalloffStart     = vec2(30.0, 5.0);
-const vec2 fogFalloffHalfLife  = vec2(15.0, 8.0); // How many meters it takes for the fog density to halve (rayleigh, mie)
+const vec2 fogFalloffHalfLife  = vec2(25.0, 8.0); // How many meters it takes for the fog density to halve (rayleigh, mie)
 const float fogLightningFlash  = 5.0;
 
 // desert sandstorm
@@ -71,7 +71,7 @@ vec2 getFogDensity(vec3 worldPos) {
 	const vec2 add = -(SEA_LEVEL + fogFalloffStart) * mul;
 
 	vec2 density    = exp2(min(worldPos.y * mul + add, 0.0));
-	     density.y *= sqr(1.0 - texture(colortex10, 0.02 * worldPos).x);
+	     density.y *= sqr(1.0 - texture(colortex10, 0.015 * worldPos).x);
 
 	return density;
 }

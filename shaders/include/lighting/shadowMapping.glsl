@@ -197,7 +197,7 @@ vec3 calculateShadows(
 	return shadowSoft(
 		shadowScreenPos,
 		shadowClipPos,
-		SHADOW_PENUMBRA_SCALE * 0.02 * blockerDepth,
+		SHADOW_PENUMBRA_SCALE * 0.02 * blockerDepth + 0.125 * (1.0 - cloudShadow),
 		biasAmount,
 		dither
 	) * distantShadow;

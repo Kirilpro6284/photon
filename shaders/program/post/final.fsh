@@ -1,7 +1,7 @@
 #define INFO 0 // [0 1]
 
 #include "/include/main.glsl"
-#include "/include/pipeline.glsl"
+#include "/include/constants.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
@@ -181,5 +181,5 @@ void main() {
 
     uvec4 encoded = texelFetch(colortex1, texel, 0);
 
-  //  fragColor = vec3(advanceTime);
+   // fragColor = vec3(texelFetch(colortex18, texel >> 1, 0).rrr);
 }

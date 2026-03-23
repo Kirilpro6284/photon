@@ -140,6 +140,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 
 	/* -- lighting -- */
 
+	float sssDepth;
 	fragColor.rgb = getSceneLighting(
 		material,
 		scenePos,
@@ -153,7 +154,8 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 		parameters.lightMap * 32.0 / 31.0,
 		materialAo,
 		getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter),
-		blockId
+		blockId,
+		sssDepth
 	);
 
 	/* -- reflections -- */
@@ -185,7 +187,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 		fragColor.a = max(fresnelDielectric(NoV, eta), eps);
 
 		vec2 lightingInfo;
-		lightingInfo.x = clamp01(rcp(32.0) * 1.0);
+		lightingInfo.x = clamp01(rcp(32.0) * sssDepth);
 		lightingInfo.y = parameters.lightMap.y;
 
 		waterMask.x = packUnorm2x8(normalTangent.xy * 0.5 + 0.5);

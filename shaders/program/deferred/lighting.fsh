@@ -198,7 +198,8 @@ void main() {
 	/* -- lighting -- */
 
 	float dither = getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter);
-
+	
+	float sssDepth;
 	radiance = getSceneLighting(
 		material,
 		scenePos,
@@ -216,7 +217,8 @@ void main() {
 		lmCoord,
 		dither,
 		1.0,
-		blockId
+		blockId,
+		sssDepth
 	);
 
 	/* -- reflections -- */

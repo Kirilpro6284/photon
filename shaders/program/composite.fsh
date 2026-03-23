@@ -58,6 +58,7 @@ void main() {
 	vec3 clearSky     = texelFetch(colortex7,  texel, 0).rgb;
 	vec4 clouds       = texelFetch(colortex2, texel, 0);
 
+#ifdef VOXY
 	vec4 translucents;
 	vec4 waterMask;
 
@@ -68,6 +69,10 @@ void main() {
 	 	translucents = texelFetch(colortex0,  texel, 0);
 	 	waterMask    = texelFetch(colortex9,  texel, 0);
 	}
+#else
+	vec4 translucents = texelFetch(colortex0,  texel, 0);
+	vec4 waterMask    = texelFetch(colortex9,  texel, 0);
+#endif
 
 	/* -- fetch lighting palette -- */
 
