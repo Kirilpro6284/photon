@@ -34,7 +34,7 @@ void main() {
 	vec3 fogScattering = textureSmooth(colortex7, coord * fogRenderScale, viewSize).rgb;
 	vec3 fogTransmittance = textureSmooth(colortex6, coord * fogRenderScale, viewSize).rgb;
 
-	if (eyeAltitude > SEA_LEVEL + 0.9 * CLOUDS_LAYER0_ALTITUDE / CLOUDS_SCALE) {
+	if (eyeAltitude > SEA_LEVEL + 0.95 * CLOUDS_LAYER0_ALTITUDE / CLOUDS_SCALE) {
 		float cloudTransmittance = texelFetch(colortex2, texel, 0).z;
 
 		fogScattering *= cloudTransmittance;
