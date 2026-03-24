@@ -9,15 +9,17 @@ const ivec2 cloudShadowMapRes = ivec2(512);
 const float cloudShadowIntensity = 0.9;
 
 vec3 projectCloudShadowMap (vec3 scenePos) {
-	vec2 cloudShadowPos  = (mat3(shadowModelView) * scenePos).xy / renderDistance;
+	vec2 cloudShadowPos  = (mat3(shadowModelView) * scenePos).xy + renderDistance * rcp(128.0) * (fract(mat3(shadowModelView) * cameraPosition * rcp(renderDistance) * 128.0).xy - 0.5);
 
 	float cascade = clamp(floor(log2(max(abs(cloudShadowPos.x), abs(cloudShadowPos.y)))) + 1.0, -3.0, 0.0);
 
-	return vec3(cloudShadowPos * exp2(-cascade) * 0.5 + 0.5, cascade + 3.0);
+	return vec3(cloudShadowPos * exp2(-cascade) * rcp(renderDistance) * 0.5 + 0.5, cascade + 3.0);
 }
 
 vec3 unprojectCloudShadowMap (vec2 cloudShadowPos, uint cascade) {
 	vec3 shadowViewPos = vec3((cloudShadowPos * 2.0 - 1.0) * exp2(cascade - 3.0) * renderDistance, -1.0);
+
+	shadowViewPos.xy -= renderDistance * rcp(128.0) * (fract(mat3(shadowModelView) * cameraPosition * rcp(renderDistance) * 128.0).xy - 0.5);
 
 	return mat3(shadowModelViewInverse) * shadowViewPos;
 }

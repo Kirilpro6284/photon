@@ -42,7 +42,8 @@ vec3 getScreenSpaceShadows (vec3 viewPos, float dither, out float distantSss) {
 		rayEnd - rayPos,
 		dither,
 		8u,
-		2u
+		2u,
+		0.25
 	);
 
 	distantSss = max0(0.5 + dot(viewShadowDir, screenToViewPos(rayPos.xy, rayPos.z, true) - offsetPos));

@@ -189,7 +189,7 @@ vec4 renderCloudVolume(
 ) {
 	/* -- raymarching setup -- */
 
-	const float maxRayLength     = 2e4;
+	const float maxRayLength     = 1e5;
 	const float minTransmittance = 0.075;
 	const float primaryStepsMulH = 1.0;
 	const float primaryStepsMulV = 0.5;

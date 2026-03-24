@@ -33,6 +33,8 @@ uniform sampler2D lodDepthTex0;
 
 //--// Includes //------------------------------------------------------------//
 
+//#define ENABLE_TEXT_RENDERING
+
 #include "/include/atmospherics/weather.glsl"
 
 #include "/include/utility/bicubic.glsl"
@@ -41,6 +43,8 @@ uniform sampler2D lodDepthTex0;
 
 #include "/include/utility/encoding.glsl"
 #include "/include/utility/spaceConversion.glsl"
+
+#include "/include/text/text.glsl"
 
 //--// Functions //-----------------------------------------------------------//
 
@@ -123,7 +127,7 @@ void main() {
 
 #if   DEBUG_VIEW == DEBUG_VIEW_SAMPLER
 	if (clamp(texel, ivec2(0), ivec2(textureSize(DEBUG_SAMPLER, 0))) == texel) {
-		fragColor  = texelFetch(DEBUG_SAMPLER, texel, 0);
+		fragColor  = texelFetch(DEBUG_SAMPLER, texel, 0).rgb;
 		fragColor *= DEBUG_SAMPLER_EXPOSURE;
 		fragColor  = linearToSrgb(fragColor);
 	} else {
@@ -181,5 +185,15 @@ void main() {
 
     uvec4 encoded = texelFetch(colortex1, texel, 0);
 
-   // fragColor = vec3(texelFetch(colortex18, texel >> 1, 0).rrr);
+    #ifdef ENABLE_TEXT_RENDERING
+        #define FONT_SIZE 2 // [1 2 3 4 5 6 7 8]
+        
+        beginText(ivec2(gl_FragCoord.xy / FONT_SIZE), ivec2(20, windowSize.y / FONT_SIZE - 20));
+        text.fgCol = vec4(vec3(1.0), 1.0);
+        text.bgCol = vec4(vec3(0.0), 0.0);
+
+        printFloat(worldAge);
+
+        endText(fragColor.rgb);
+    #endif
 }

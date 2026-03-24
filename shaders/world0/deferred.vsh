@@ -34,11 +34,11 @@ uniform sampler3D colortex9; // Atmosphere scattering LUT
 void main() {
 	weather = getWeather();
 
-	vec3 rayOrigin = vec3(0.0, planetRadius, 0.0);
+	vec3 rayOrigin = vec3(0.0, planetRadius + 400.0, 0.0);
 	vec3 rayDir = cloudsMoonlit ? moonDir : sunDir;
 
 	cloudsDirectIrradiance  = cloudsMoonlit ? moonIrradiance : sunIrradiance;
-	cloudsDirectIrradiance *= getAtmosphereTransmittance(rayOrigin, rayDir);
+	cloudsDirectIrradiance *= getAtmosphereTransmittance(rayOrigin, rayDir) * smoothstep(0.0, 0.02, abs(sunDir.y + 0.02));
 	cloudsDirectIrradiance *= 1.0 - pulse(float(worldTime), 12850.0, 50.0) - pulse(float(worldTime), 23150.0, 50.0);
 
 	paletteSetup();

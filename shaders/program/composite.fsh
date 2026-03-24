@@ -136,7 +136,16 @@ void main() {
 	/* -- blend with clouds -- */
 
 	if (backDepth > 0.0 && clouds.w < viewerDistance * CLOUDS_SCALE) {
-		vec3 cloudsScattering = mat2x3(directIrradiance, skyIrradiance) * clouds.xy;
+		const float cloudsLightningFlash = 10.0;
+
+		vec3 rayOrigin = vec3(0.0, planetRadius + 400.0, 0.0);
+		vec3 rayDir = cloudsMoonlit ? moonDir : sunDir;
+
+		vec3 cloudsDirectIrradiance  = cloudsMoonlit ? moonIrradiance * moonPhaseBrightness : sunIrradiance;
+			 cloudsDirectIrradiance *= getAtmosphereTransmittance(rayOrigin, rayDir) * smoothstep(0.0, 0.02, abs(sunDir.y + 0.02));
+			 cloudsDirectIrradiance *= 1.0 - pulse(float(worldTime), 12850.0, 50.0) - pulse(float(worldTime), 23150.0, 50.0);
+
+		vec3 cloudsScattering = mat2x3(cloudsDirectIrradiance, skyIrradiance + cloudsLightningFlash * lightningFlash) * clouds.xy;
 
 		radiance = radiance * clouds.z + cloudsScattering;
 	}

@@ -108,7 +108,7 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 
 	ivec2 srcTexel = ivec2(dstTexel * cloudsRenderScale);
 
-	vec4 currData = texelFetch(colortex5, srcTexel, 0);
+	vec4 currData = texelFetch(colortex5, srcTexel, 0) * currentScale;
 
 	vec4 aabbMin = vec4(1.0); 
 	vec4 aabbMax = vec4(0.0);
@@ -125,12 +125,10 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	aabbMin *= currentScale;
 	aabbMax *= currentScale;
 
-	vec3 previousCoord = reprojectClouds(coord, currData.w * 1e6);
-	vec2 previousCoordClamped = clamp(previousCoord.xy, vec2(0.0), 1.0 - 2.0 * viewTexelSize); // Prevent line at edge of screen
+	vec3 previousCoord = reprojectClouds(coord, currData.w);
+	vec2 previousCoordClamped = clamp(previousCoord.xy, vec2(0.0), 1.0 - sqrt(CLOUDS_UPSCALING_FACTOR) * viewTexelSize); // Prevent line at edge of screen
 
-	vec2 velocity = (coord - previousCoord.xy) * viewSize;
-
-	vec4 current = currData * currentScale;
+	vec4 current = currData;
 	vec4 history = textureCatmullRom(colortex2, previousCoordClamped);
 
 	float clampingStrength = smoothstep(0.9 * CLOUDS_LAYER0_ALTITUDE * rcp(CLOUDS_SCALE), 0.95 * CLOUDS_LAYER0_ALTITUDE * rcp(CLOUDS_SCALE), eyeAltitude - SEA_LEVEL);
@@ -187,7 +185,7 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	cloudsHistory = current;
 	cloudsPixelAge = min(pixelAge + 1, 254);
 
-	return current;
+	return vec4(current.rgb, mix(currData.w, history.w, 0.8));
 }
 
 void main() {

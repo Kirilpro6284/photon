@@ -9,12 +9,11 @@ bool raymarchIntersection (
 	vec3 rayDir,
 	float dither,
 	const uint intersectionStepCount,
-	const uint refinementStepCount
+	const uint refinementStepCount,
+	float depthTolerance
 ) {
 	vec3 rayStep = rayDir * rcp(float(intersectionStepCount));
 	rayPos += dither * rayStep;
-
-	float depthTolerance = 0.002; // Todo: better depth tolerance calculation
 
 	bool hit = false;
 
@@ -23,7 +22,7 @@ bool raymarchIntersection (
 	for (int i = 0; i < intersectionStepCount; ++i, rayPos += rayStep) {
 		float depth = texelFetch(lodDepthTex1, ivec2(rayPos.xy * viewSize), 0).x;
 
-		if (depth > rayPos.z) {
+		if (depth > rayPos.z && abs(rayPos.z - depth) < (depthTolerance * max(abs(rayStep.z), abs(rayPos.z) * 0.075))) {
 			hit = true;
 			break;
 		}
@@ -72,7 +71,8 @@ bool traceScreenSpaceRay (
 		rayDir,
 		dither,
 		intersectionStepCount,
-		refinementStepCount
+		refinementStepCount,
+		2.0
 	);
 }
 
