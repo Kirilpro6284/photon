@@ -6,7 +6,7 @@
 const ivec2 cloudShadowTileRes = ivec2(256);
 const ivec2 cloudShadowMapRes = ivec2(512);
 
-const float cloudShadowIntensity = 0.85;
+const float cloudShadowIntensity = 0.9;
 
 vec3 projectCloudShadowMap (vec3 scenePos) {
 	vec2 cloudShadowPos  = (mat3(shadowModelView) * scenePos).xy / renderDistance;

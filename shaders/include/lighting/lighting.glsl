@@ -35,7 +35,7 @@ vec3 getScreenSpaceShadows (vec3 viewPos, float dither, out float distantSss) {
 	vec3 offsetPos = viewPos + mat2x3(t) * polar(0.5, tau * dither);
 
 	vec3 rayEnd = viewToScreenSpace(offsetPos, true);
-	vec3 rayPos = viewToScreenSpace(offsetPos + viewShadowDir * 8.0, true);
+	vec3 rayPos = viewToScreenSpace(offsetPos + viewShadowDir * 15.0, true);
 
 	bool hit = raymarchIntersection(
 		rayPos,

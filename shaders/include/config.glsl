@@ -23,10 +23,10 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
 
 //--// Clouds
 
-  #define CLOUDS_UPSCALING_FACTOR 9 // Renders clouds at a lower resolution and uses checkerboard upscaling to fill in the rest. More temporal upscaling means that clouds are rendered at a lower internal resolution; disabling temporal upscaling results in the best quality clouds but the worst performance. This does not take into account the TAA upscaling factor, so if the clouds upscaling factor is 9x and the TAA upscaling factor is 2x, then the clouds are actually being upscaled to 18x their source resolution [1 2 4 8 9 16]
+  #define CLOUDS_UPSCALING_FACTOR 16 // Renders clouds at a lower resolution and uses checkerboard upscaling to fill in the rest. More temporal upscaling means that clouds are rendered at a lower internal resolution; disabling temporal upscaling results in the best quality clouds but the worst performance. This does not take into account the TAA upscaling factor, so if the clouds upscaling factor is 9x and the TAA upscaling factor is 2x, then the clouds are actually being upscaled to 18x their source resolution [1 2 4 8 9 16]
   #define CLOUDS_MIN_ACCUMULATION_LIMIT 0.9
   #define CLOUDS_MAX_ACCUMULATION_LIMIT 0.4
-  #define CLOUDS_SCALE 8.0 // Applied as a scale factor to all clouds, to bring the clouds from a realistic size and altitude to an altitude that is accessible during gameplay. If this value is 1.0, clouds are positioned realistically, with the first layer 800 blocks up by default. If this value is higher, then clouds will appear smaller and form closer to the ground. This also affects the size of cloud shadows // [1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 15.0]
+  #define CLOUDS_SCALE 7.0 // Applied as a scale factor to all clouds, to bring the clouds from a realistic size and altitude to an altitude that is accessible during gameplay. If this value is 1.0, clouds are positioned realistically, with the first layer 800 blocks up by default. If this value is higher, then clouds will appear smaller and form closer to the ground. This also affects the size of cloud shadows // [1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 15.0]
 
   #define CLOUDS_MODE_PLANAR 0
   #define CLOUDS_MODE_VOLUMETRIC 1
@@ -269,7 +269,7 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
 //--// Temporal AA
 
   #define TAA // Massively improves image quality, but can also introduce temporal artifacts. Required by Temporal Upscaling - do not disable TAA without also disabling Temporal Upscaling, otherwise the shader pack will break! Many features rely on TAA to alleviate noise!
-  #define TAA_UPSCALING_FACTOR 2 // Renders the scene at a reduced resolution and uses TAA to upscale it. More temporal upscaling means that the scene is rendered at a lower internal resolution; 2x temporal upscaling means that half as many pixels are shaded each frame as when temporal upscaling is disabled (this does not apply to post-processing effects). May impact image quality and responsiveness. Requires Temporal AA! [1 2 4]
+  #define TAA_UPSCALING_FACTOR 1 // Renders the scene at a reduced resolution and uses TAA to upscale it. More temporal upscaling means that the scene is rendered at a lower internal resolution; 2x temporal upscaling means that half as many pixels are shaded each frame as when temporal upscaling is disabled (this does not apply to post-processing effects). May impact image quality and responsiveness. Requires Temporal AA! [1 2 4]
 //#define TAA_SKIP_CLIPPING // Disables neighborhood clipping. Enabling this option may increase image quality, especially with temporal upscaling, but results in terrible ghosting. This option should only be used for taking screenshots!
   #define TAA_VARIANCE_CLIPPING // More aggressive neighborhood clipping method which further reduces ghosting but can introduce flickering artifacts
   #define TAA_BLEND_WEIGHT 0.125 // The maximum weight given to the current frame by the temporal AA. Higher values result in reduced ghosting and blur but jittering is more obvious [0.025 0.05 0.075 0.1 0.125 0.15 0.175 0.2 0.225 0.25]

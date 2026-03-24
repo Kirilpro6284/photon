@@ -123,7 +123,7 @@ void main() {
 
 #if   DEBUG_VIEW == DEBUG_VIEW_SAMPLER
 	if (clamp(texel, ivec2(0), ivec2(textureSize(DEBUG_SAMPLER, 0))) == texel) {
-		fragColor  = texelFetch(DEBUG_SAMPLER, texel, 0).rgb;
+		fragColor  = texelFetch(DEBUG_SAMPLER, texel, 0);
 		fragColor *= DEBUG_SAMPLER_EXPOSURE;
 		fragColor  = linearToSrgb(fragColor);
 	} else {

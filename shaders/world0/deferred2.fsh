@@ -57,40 +57,6 @@ uniform sampler2D lodDepthTex1;
 
 //--// Functions //-----------------------------------------------------------//
 
-vec4 minOf(vec4 a, vec4 b, vec4 c, vec4 d, vec4 f) {
-    return min(a, min(b, min(c, min(d, f))));
-}
-
-vec4 maxOf(vec4 a, vec4 b, vec4 c, vec4 d, vec4 f) {
-    return max(a, max(b, max(c, max(d, f))));
-}
-
-vec3 reprojectClouds(vec2 coord, float distanceToCloud) {
-	const float windSpeed = CLOUDS_LAYER0_WIND_SPEED / CLOUDS_SCALE;
-	const float windAngle = CLOUDS_LAYER0_WIND_ANGLE * tau / 360.0;
-
-	vec3 pos = projectAndDivide(gbufferProjectionInverse, vec3(coord, 1.0) * 2.0 - 1.0);
-	     pos = mat3(gbufferModelViewInverse) * pos;
-	     pos = normalize(pos) * distanceToCloud * rcp(CLOUDS_SCALE);
-
-	vec3 velocity  = -cameraVelocity;
-	     
-	if (advanceTime) velocity += windSpeed * frameTime * vec3(cos(windAngle), sin(windAngle), 0.0).xzy;
-
-	vec3 previousPos = transform(gbufferPreviousModelView, pos + gbufferModelViewInverse[3].xyz - velocity);
-	     previousPos = projectAndDivide(gbufferPreviousProjection, previousPos);
-
-	return previousPos * 0.5 + 0.5;
-}
-
-vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
-	/*
-	 * x: sunlight
-	 * y: skylight
-	 * z: transmittance
-	 * w: apparent distance
-	 */
-
 #if CLOUDS_UPSCALING_FACTOR == 1
 	const vec2 cloudsRenderScale = vec2(1.0);
 	#define checkerboardOffsets ivec2[1](ivec2(0))
@@ -111,41 +77,44 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	#define checkerboardOffsets checkerboardOffsets4x4
 #endif
 
+vec3 reprojectClouds(vec2 coord, float distanceToCloud) {
+	const float windSpeed = CLOUDS_LAYER0_WIND_SPEED / CLOUDS_SCALE;
+	const float windAngle = CLOUDS_LAYER0_WIND_ANGLE * tau / 360.0;
+
+	vec3 pos = projectAndDivide(gbufferProjectionInverse, vec3(coord, 1.0) * 2.0 - 1.0);
+	     pos = mat3(gbufferModelViewInverse) * pos;
+	     pos = normalize(pos) * distanceToCloud * rcp(CLOUDS_SCALE);
+
+	vec3 velocity  = -cameraVelocity;
+	     
+	if (advanceTime) velocity += windSpeed * frameTime * vec3(cos(windAngle), sin(windAngle), 0.0).xzy;
+
+	vec3 previousPos = transform(gbufferPreviousModelView, pos + gbufferModelViewInverse[3].xyz - velocity);
+	     previousPos = projectAndDivide(lodProjMatPrev0, previousPos);
+
+	return vec3(previousPos.xy * 0.5 + 0.5, previousPos.z * -0.5);
+}
+
+vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
+	/*
+	 * x: sunlight
+	 * y: skylight
+	 * z: transmittance
+	 * w: apparent distance
+	 */
+
 	// Scales new sample values back to its actual range
 	const vec4 currentScale = vec4(1e2, 1e2, 1.0, 1e6);
 
 	ivec2 srcTexel = ivec2(dstTexel * cloudsRenderScale);
-/*
-	// Fetch 3x3 neighborhood
-	vec4 a = texelFetch(colortex5, srcTexel + ivec2(-1, -1), 0);
-	vec4 b = texelFetch(colortex5, srcTexel + ivec2( 0, -1), 0);
-	vec4 c = texelFetch(colortex5, srcTexel + ivec2( 1, -1), 0);
-	vec4 d = texelFetch(colortex5, srcTexel + ivec2(-1,  0), 0);
-	
-	vec4 f = texelFetch(colortex5, srcTexel + ivec2( 1,  0), 0);
-	vec4 g = texelFetch(colortex5, srcTexel + ivec2(-1,  1), 0);
-	vec4 h = texelFetch(colortex5, srcTexel + ivec2( 0,  1), 0);
-	vec4 i = texelFetch(colortex5, srcTexel + ivec2( 1,  1), 0);
 
-	// Soft minimum and maximum ("Hybrid Reconstruction Antialiasing")
-	//        b         a b c
-	// (min d e f + min d e f) / 2
-	//        h         g h i
-	vec4 aabbMin  = minOf(b, d, e, f, h);
-	     aabbMin += minOf(aabbMin, a, c, g, i);
-	     aabbMin *= 0.5 * currentScale;
+	vec4 currData = texelFetch(colortex5, srcTexel, 0);
 
-	vec4 aabbMax  = maxOf(b, d, e, f, h);
-	     aabbMax += maxOf(aabbMax, a, c, g, i);
-	     aabbMax *= 0.5 * currentScale;
-*/
+	vec4 aabbMin = vec4(1.0); 
+	vec4 aabbMax = vec4(0.0);
 
-	vec4 e = texelFetch(colortex5, srcTexel, 0);
-
-	vec4 aabbMin = vec4(1.0); vec4 aabbMax = vec4(0.0);
-
-	for (int x = -2; x <= 2; x++) {
-		for (int y = -2; y <= 2; y++) {
+	for (int x = -1; x <= 1; x++) {
+		for (int y = -1; y <= 1; y++) {
 			vec4 sampleData = texelFetch(colortex5, srcTexel + ivec2(x, y), 0);
 
 			aabbMin = min(aabbMin, sampleData);
@@ -156,36 +125,39 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	aabbMin *= currentScale;
 	aabbMax *= currentScale;
 
-	vec2 previousCoord = reprojectClouds(coord, e.w * 1e6).xy;
+	vec3 previousCoord = reprojectClouds(coord, currData.w * 1e6);
 	vec2 previousCoordClamped = clamp(previousCoord.xy, vec2(0.0), 1.0 - 2.0 * viewTexelSize); // Prevent line at edge of screen
 
-	vec2 velocity = (coord - previousCoord) * viewSize;
+	vec2 velocity = (coord - previousCoord.xy) * viewSize;
 
-	vec4 current = e * currentScale;
+	vec4 current = currData * currentScale;
 	vec4 history = textureCatmullRom(colortex2, previousCoordClamped);
-	vec4 historyClamped = clamp(history, aabbMin, aabbMax);
 
-	// Only clamp when moving fast or when close to or above clouds
-	float clampingStrength = smoothstep(-4.0, 2.0, length(cameraVelocity)) * smoothstep(0.8 * CLOUDS_LAYER0_ALTITUDE, CLOUDS_LAYER0_ALTITUDE, CLOUDS_SCALE * (eyeAltitude - SEA_LEVEL));
-	      clampingStrength = clamp01(clampingStrength);
+	float clampingStrength = smoothstep(0.9 * CLOUDS_LAYER0_ALTITUDE * rcp(CLOUDS_SCALE), 0.95 * CLOUDS_LAYER0_ALTITUDE * rcp(CLOUDS_SCALE), eyeAltitude - SEA_LEVEL);
 
-	history = mix(history, historyClamped, clampingStrength);
+	history.rgb = mix(history.rgb, clamp(history.rgb, aabbMin.rgb, aabbMax.rgb), clampingStrength);
+	history.w = clamp(history.w, aabbMin.w, aabbMax.w);
+
+	float historyDepth = maxOf(vec4(
+		maxOf(textureGather(colortex13, previousCoordClamped + 0.5 * vec2( viewTexelSize.x,  viewTexelSize.y), 1)),
+		maxOf(textureGather(colortex13, previousCoordClamped + 0.5 * vec2(-viewTexelSize.x,  viewTexelSize.y), 1)),
+		maxOf(textureGather(colortex13, previousCoordClamped + 0.5 * vec2( viewTexelSize.x, -viewTexelSize.y), 1)),
+		maxOf(textureGather(colortex13, previousCoordClamped + 0.5 * vec2(-viewTexelSize.x, -viewTexelSize.y), 1))
+	));
 
 	bool offscreen = clamp01(previousCoord.xy) != previousCoord.xy;
-
-	float historyDepth = texture(colortex13, previousCoordClamped).y;
-	bool disoccluded = positionScreen.z == 0.0 && historyDepth > eps;
+	bool disoccluded = previousCoord.z > 0.0 && (linearizeDepth(previousCoord.z) - linearizeDepth(historyDepth) > 10.0);
 
 	bool invalidHistory = offscreen || disoccluded || worldAgeChanged || any(isnan(history)) || any(isinf(history));
 
-	uint pixelAge = texelFetch(colortex4, ivec2(previousCoord * viewSize * cloudsRenderScale), 0).x;
+	uint pixelAge = texelFetch(colortex4, ivec2(previousCoord.xy * viewSize * cloudsRenderScale), 0).x;
 
 	if (invalidHistory) {
 		current = history = textureBicubic(colortex5, coord * cloudsRenderScale) * currentScale;
 		pixelAge = 0;
 	}
 
-	float accumulationLimit = mix(CLOUDS_MIN_ACCUMULATION_LIMIT, CLOUDS_MAX_ACCUMULATION_LIMIT, clampingStrength);
+	float accumulationLimit = 0.8;
 
 	float x = float(pixelAge);
 	float historyWeight = min(x / (x + 1.0), accumulationLimit);
@@ -193,22 +165,23 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	// Soften history sample for newer pixels
 	vec4 historySmooth = textureBicubic(colortex2, previousCoordClamped);
 	     historySmooth = mix(historySmooth, history, clamp01(historyWeight));
-		 historySmooth = invalidHistory ? history : mix(historySmooth, clamp(historySmooth, aabbMin, aabbMax), clampingStrength);
+		 historySmooth = invalidHistory ? history : historySmooth;
+
+	// Offcenter rejection from Jessie, which is originally from Zombye
+	// Reduces blur in motion
+	vec2 pixelOffset = 1.0 - abs(2.0 * fract(previousCoord.xy * viewSize) - 1.0);
+	historyWeight *= sqrt(max0(pixelOffset.x * pixelOffset.y)) * 0.5 + 0.5;
+
+	// Velocity rejection
+	historyWeight *= exp(-0.1 * CLOUDS_SCALE * length(cameraVelocity));
 
 	// Checkerboard upscaling
 	ivec2 offset0 = dstTexel % ivec2(rcp(cloudsRenderScale));
 	ivec2 offset1 = checkerboardOffsets[frameCounter % CLOUDS_UPSCALING_FACTOR];
 	if (offset0 != offset1) current = historySmooth;
 
-	// Velocity rejection
-	historyWeight *= exp(-length(velocity)) * 0.7 + 0.3;
-
-	// Offcenter rejection from Jessie, which is originally from Zombye
-	// Reduces blur in motion
-	vec2 pixelOffset = 1.0 - abs(2.0 * fract(previousCoord * viewSize) - 1.0);
-	historyWeight *= sqrt(pixelOffset.x * pixelOffset.y) * 0.5 + 0.5;
-
-	current = mix(current, history, historyWeight);
+	current.rgb = mix(current.rgb, history.rgb, historyWeight);
+	current.w = min(history.w, current.w);
 
 	// Update history for next frame
 	cloudsHistory = current;

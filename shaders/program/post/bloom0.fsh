@@ -38,5 +38,7 @@ void main() {
 
 		int lod = int(textureQueryLod(colortex8, windowCoord).x);
 		bloom = textureBicubicLod(colortex8, windowCoord, lod).rgb;
+
+		if (any(isnan(bloom))) bloom = vec3(0.0);
 	}
 }

@@ -28,12 +28,6 @@ uniform sampler2D lodDepthTex1;
 
 //--// Functions //-----------------------------------------------------------//
 
-float linearizeDepth(float depth) {
-	depth *= -2.0;
-
-	return -(lodProjMatInv_2.z * depth + lodProjMatInv_3.z) / (lodProjMatInv_2.w * depth + lodProjMatInv_3.w);
-}
-
 vec3 minOf(vec3 a, vec3 b, vec3 c, vec3 d, vec3 f) {
     return min(a, min(b, min(c, min(d, f))));
 }
