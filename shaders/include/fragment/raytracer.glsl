@@ -4,15 +4,13 @@
 #include "/include/utility/geometry.glsl"
 #include "/include/utility/spaceConversion.glsl"
 
-float raymarchIntersection (
+bool raymarchIntersection (
 	inout vec3 rayPos,
 	vec3 rayDir,
 	float dither,
 	const uint intersectionStepCount,
 	const uint refinementStepCount
 ) {
-	float hitDist = 0.0;
-
 	vec3 rayStep = rayDir * rcp(float(intersectionStepCount));
 	rayPos += dither * rayStep;
 
@@ -27,36 +25,30 @@ float raymarchIntersection (
 
 		if (depth > rayPos.z) {
 			hit = true;
-			hitDist = (i + dither) / float(intersectionStepCount);
 			break;
 		}
 	}
 
-	if (!hit) return 1.0;
+	if (!hit) return false;
 
 	//--// Refinement loop
 
-	float w = 1.0;
-
 	for (int i = 0; i < refinementStepCount; ++i) {
 		rayStep *= 0.5;
-		w *= 0.5;
 
 		float depth = texelFetch(lodDepthTex1, ivec2(rayPos.xy * viewSize), 0).x;
 
 		if (depth > rayPos.z) {
 			rayPos -= rayStep;
-			hitDist -= w;
 		} else {
 			rayPos += rayStep;
-			hitDist += w;
 		}
 	}
 
-	return hitDist;
+	return true;
 }
 
-float traceScreenSpaceRay (
+bool traceScreenSpaceRay (
 	vec3 screenPos,
 	vec3 viewPos,
 	vec3 viewDir,
@@ -65,7 +57,7 @@ float traceScreenSpaceRay (
 	const uint refinementStepCount,
 	out vec3 hitPos
 ) {
-	if (viewDir.z > 0.0 && viewDir.z >= -viewPos.z) return 1.0;
+	if (viewDir.z > 0.0 && viewDir.z >= -viewPos.z) return false;
 	
 	vec3 screenDir = normalize(viewToScreenSpace(viewPos + viewDir, true) - screenPos);
 

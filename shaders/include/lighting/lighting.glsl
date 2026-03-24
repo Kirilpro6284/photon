@@ -18,7 +18,7 @@ const float emissionIntensity   = 16.0 * BLOCKLIGHT_INTENSITY;
 const float sssIntensity        = 3.0;
 const float sssDensity          = 12.0;
 
-vec3 getSubsurfaceScattering(vec3 albedo, float sssAmount, float sssDepth, float LoV) {
+vec3 getSubsurfaceScattering (vec3 albedo, float sssAmount, float sssDepth, float LoV) {
 	if (sssAmount < eps) return vec3(0.0);
 
 	vec3 coeff = normalizeSafe(albedo) * sqrt(sqrt(length(albedo)));
@@ -28,6 +28,26 @@ vec3 getSubsurfaceScattering(vec3 albedo, float sssAmount, float sssDepth, float
 	vec3 sss2 = exp(1.0 * coeff * sssDepth) * (0.6 * henyeyGreensteinPhase(-LoV, 0.33) + 0.4 * henyeyGreensteinPhase(-LoV, -0.2));
 
 	return albedo * sssIntensity * sssAmount * (sss1 + sss2);
+}
+
+vec3 getScreenSpaceShadows (vec3 viewPos, float dither, out float distantSss) {
+	mat3 t = tbnNormal(viewShadowDir);
+	vec3 offsetPos = viewPos + mat2x3(t) * polar(0.5, tau * dither);
+
+	vec3 rayEnd = viewToScreenSpace(offsetPos, true);
+	vec3 rayPos = viewToScreenSpace(offsetPos + viewShadowDir * 8.0, true);
+
+	bool hit = raymarchIntersection(
+		rayPos,
+		rayEnd - rayPos,
+		dither,
+		8u,
+		2u
+	);
+
+	distantSss = max0(0.5 + dot(viewShadowDir, screenToViewPos(rayPos.xy, rayPos.z, true) - offsetPos));
+
+	return vec3(!hit);
 }
 
 float getBlocklightFalloff(float blocklight, float ao) {
@@ -106,18 +126,10 @@ vec3 getSceneLighting(
 		sssDepth = blockerDepth;
 		
 		if (lodGradient > 0.0) {
-			vec3 rayStart = viewToScreenSpace(viewPos + 2.0 * viewShadowDir - 0.2 * gbufferModelView[1].xyz, true);
-			vec3 rayEnd = viewToScreenSpace(viewPos - 0.2 * gbufferModelView[1].xyz, true);
+			float distantSss;
 
-			float distantSss = raymarchIntersection(
-				rayStart,
-				rayEnd - rayStart,
-				dither,
-				4u,
-				4u
-			);
-		
-			sssDepth = mix(sssDepth, 8.0 * max0(0.96 - lmCoord.y) + max(0.05, (1.25 - distantSss) * step(distantSss, 0.999)), lodGradient);
+			visibility = mix(visibility, NoL * getScreenSpaceShadows(viewPos, dither, distantSss), lodGradient);
+			sssDepth = mix(sssDepth, distantSss, lodGradient);
 		}
 
 		vec3 diffuse = diffuseHammon(material, NoL, NoV, NoH, LoV) * (1.0 - 0.75 * material.sssAmount);

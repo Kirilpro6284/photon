@@ -72,6 +72,7 @@ vec2 getFogDensity(vec3 worldPos) {
 
 	vec2 density    = exp2(min(worldPos.y * mul + add, 0.0));
 	     density.y *= sqr(1.0 - texture(colortex10, 0.015 * worldPos).x);
+		 density.y *= 1.5 - texture(colortex10, 0.004 * worldPos).x;
 
 	return density;
 }
