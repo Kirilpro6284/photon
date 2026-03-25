@@ -93,6 +93,13 @@ float minOf(vec4 v) { return min(v.x, min(v.y, min(v.z, v.w))); }
 
 vec2 polar(float r, float theta) { return r * vec2(cos(theta), sin(theta)); }
 
+mat2 rotate (float theta) {
+    float cosTheta = cos(theta);
+    float sinTheta = sin(theta);
+
+    return mat2(cosTheta, -sinTheta, sinTheta, cosTheta);
+}
+
 float lengthSquared(vec2 v) { return dot(v, v); }
 float lengthSquared(vec3 v) { return dot(v, v); }
 

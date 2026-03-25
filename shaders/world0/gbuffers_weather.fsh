@@ -70,7 +70,7 @@ void main() {
 	mat2x4 data;
 	data[0].xyz = vec3(0.0);
 	data[0].w   = (isSnow ? snowId : rainId) * rcp(255.0);
-	data[1].xy  = encodeUnitVector(vec3(0.0, 1.0, 0.0));
+	data[1].xy  = octEncode(vec3(0.0, 1.0, 0.0));
 	data[1].zw  = vec2(1.0);
 
 	encoded.x = packUnorm4x8(data[0]);

@@ -159,7 +159,7 @@ vec3 calculateShadows(
 
 	float distantShadow   = lightmapShadows(skylight, NoL);
 
-	if (clamp01(shadowScreenPos) != shadowScreenPos) return vec3(distantShadow);
+	if (clamp01(shadowScreenPos.xy) != shadowScreenPos.xy) return vec3(distantShadow);
 
 	// fade into distant shadows in the distance
 	float distanceFade = smoothstep(0.45, 0.5, maxOf(abs(shadowScreenPos.xy - 0.5)));

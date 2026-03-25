@@ -70,7 +70,7 @@ uniform sampler2DShadow shadowtex1HW;
 
 //--// Functions //-----------------------------------------------------------//
 
-const float hbilRenderScale = 0.01 * HBIL_RENDER_SCALE;
+const float hbilRenderScale = 0.01 * INDIRECT_RENDER_SCALE;
 
 // Spatial upsampling for HBIL
 
@@ -78,11 +78,11 @@ vec4 weighHbilSample(vec4 data, vec3 normal, float z0, float NoV, float weight) 
 	const float depthStrictness = 10.0;
 	const float depthTolerance  = 0.005;
 
-	bool isSky = data.x == 0.0;
+	bool isSky = false;
 
 	if (!isSky) {
 		vec3 irradianceSample = decodeRgbe8(vec4(unpackUnorm2x8(data.x), unpackUnorm2x8(data.y)));
-		vec3 normalSample = decodeUnitVector(unpackUnorm2x8(data.w));
+		vec3 normalSample = octDecode(unpackUnorm2x8(data.w));
 
 		float z1 = data.z * renderDistance;
 
@@ -148,12 +148,12 @@ void main() {
 
 	vec3 albedo = data[0].xyz;
 	uint blockId = uint(data[0].w * 255.0);
-	vec3 geometryNormal = decodeUnitVector(data[1].xy);
+	vec3 geometryNormal = octDecode(data[1].xy);
 	vec2 lmCoord = data[1].zw;
 
 #ifdef NORMAL_MAP
 	vec4 normalData = unpackUnormArb(encoded.z, uvec4(12, 12, 7, 1));
-	vec3 normal = decodeUnitVector(normalData.xy);
+	vec3 normal = octDecode(normalData.xy);
 #else
 	#define normal geometryNormal
 #endif
@@ -165,7 +165,7 @@ void main() {
 
 	/* -- fetch hbil -- */
 
-#ifdef HBIL
+#ifdef INDIRECT_LIGHTING
 	float linZ = linearizeDepth(depth);
 	float NoV = abs(dot(normal, viewerDir));
 	vec3 indirectIrradiance = upsampleHbil(normal, linZ, NoV);
@@ -208,7 +208,7 @@ void main() {
 		geometryNormal,
 		viewerDir,
 		directIrradiance,
-#ifdef HBIL
+#ifdef INDIRECT_LIGHTING
 		indirectIrradiance,
 #else
 		ambientIrradiance,

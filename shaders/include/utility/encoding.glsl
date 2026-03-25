@@ -10,7 +10,7 @@ vec2 signNonZero(vec2 v) {
 }
 
 // http://jcgt.org/published/0003/02/01/
-vec2 encodeUnitVector(vec3 v) {
+vec2 octEncode(vec3 v) {
 	// Project the sphere onto the octahedron, and then onto the xy plane
 	vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));
 
@@ -21,7 +21,7 @@ vec2 encodeUnitVector(vec3 v) {
 	return 0.5 * p + 0.5;
 }
 
-vec3 decodeUnitVector(vec2 e) {
+vec3 octDecode(vec2 e) {
 	// Scale to [-1, 1]
 	e = 2.0 * e - 1.0;
 

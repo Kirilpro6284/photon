@@ -19,6 +19,7 @@ layout (location = 0) out vec4 data;
 flat in vec3[9] skySh;
 
 flat in vec3 ambientIrradiance;
+flat in vec3 directIrradiance;
 flat in vec3 skyIrradiance;
 
 //--// Uniforms //------------------------------------------------------------//
@@ -26,11 +27,18 @@ flat in vec3 skyIrradiance;
 uniform sampler2D noisetex;
 
 uniform usampler2D colortex1; // Scene data
-uniform sampler2D colortex15; // Reprojected scene history
+
+uniform sampler2D shadowcolor0; // Shadow albedo
+uniform sampler2D shadowcolor1; // Shadow normal & skylight
+
+uniform sampler2D shadowtex1;
 
 uniform sampler2D lodDepthTex1;
 
 //--// Includes //------------------------------------------------------------//
+
+#include "/include/lighting/shadowDistortion.glsl"
+#include "/include/lighting/cloudShadows.glsl"
 
 #include "/include/utility/color.glsl"
 #include "/include/utility/encoding.glsl"
@@ -42,133 +50,113 @@ uniform sampler2D lodDepthTex1;
 
 //--// Functions //-----------------------------------------------------------//
 
-const float hbilRenderScale = 0.01 * HBIL_RENDER_SCALE;
+const float indirectRenderScale = 0.01 * INDIRECT_RENDER_SCALE;
 
-// ∫[theta0, theta1] dot(normal, omega_i) * sin(theta) * dtheta
-// equation 18 from the paper
-float integrateArc(vec2 sliceNormal, vec2 cosTheta) {
-	vec2 theta = fastAcos(cosTheta);
-	vec2 sinTheta = sqrt(1.0 - sqr(cosTheta));
+float getMaxHorizonAngle (vec2 sliceDir, vec2 screenPos, vec3 viewPos, vec3 viewDir, vec2 stepSize, float dither) {
+    vec2 stepDir = stepSize * sliceDir.xy;
+    vec2 stepPos = screenPos + stepDir * dither;
+    
+    float maxTheta = -1.0;
 
-	float x = theta[1] - theta[0] + sinTheta[0] * cosTheta[0] - sinTheta[1] * cosTheta[1];
-	float y = sqr(cosTheta[0]) - sqr(cosTheta[1]);
+    for (int i = 0; i < GTAO_HORIZON_STEPS; i++, stepPos += stepDir) {
+        float sampleDepth = texelFetch(lodDepthTex1, ivec2(viewSize * stepPos), 0).r;
 
-	return dot(sliceNormal, vec2(x, y)) * 0.5;
+        vec3 sampleVec = screenToViewPos(stepPos.xy, sampleDepth, true) - viewPos;
+        float lengthSqu = dot(sampleVec, sampleVec);
+
+        float cosTheta = dot(sampleVec, viewDir) * inversesqrt(lengthSqu);
+              cosTheta = mix(cosTheta, -1.0, clamp01(lengthSqu - 3.0 * GTAO_RADIUS));
+
+        maxTheta = max(maxTheta, cosTheta);
+    }
+
+    return acos(clamp(maxTheta, -1.0, 1.0));
 }
 
-vec3 integrateNormal(vec3 viewSliceDir, vec3 viewerDir, vec2 cosTheta) {
-	vec2 theta = fastAcos(cosTheta) * vec2(1.0, -1.0);
-	vec2 sinTheta = sqrt(1.0 - cosTheta * cosTheta) * vec2(1.0, -1.0);
+vec4 getAmbientOcclusion (vec3 screenPos, vec3 viewPos, vec3 viewNormal, vec2 dither) {
+    #if GTAO_SLICES > 0
+        vec3 viewDir = normalize(-viewPos);
+        vec2 stepSize = vec2(lodProjMat_0.x, lodProjMat_1.y) * GTAO_RADIUS * rcp(GTAO_HORIZON_STEPS * max(0.25, -viewPos.z));
 
-	float x = theta[1] + theta[0] - sinTheta[0] * cosTheta[0] - sinTheta[1] * cosTheta[1]; // (eq. 5)
-	float y = 2.0 - sqr(cosTheta[0]) - sqr(cosTheta[1]); // (eq. 6)
+        vec3 sliceDir = vec3(cos(tau * dither.x), sin(tau * dither.x), 0.0);
+        vec4 integratedData = vec4(0.0);
 
-	return x * viewSliceDir + y * viewerDir;
+        for (int i = 0; i < GTAO_SLICES; i++) {
+            float sliceAngle = pi * (i + dither.x) * rcp(GTAO_SLICES);
+            vec3 sliceDir = vec3(cos(sliceAngle), sin(sliceAngle), 0.0);
+
+            vec3 tangent = sliceDir - dot(sliceDir, viewDir) * viewDir;
+            vec3 axis = cross(sliceDir, viewDir);
+            vec3 projNormal = viewNormal - axis * dot(viewNormal, axis);
+
+            float cosGamma = clamp01(dot(viewDir, projNormal) * inversesqrt(dot(projNormal, projNormal)));
+            float gamma = sign(dot(tangent, projNormal)) * acos(cosGamma);
+
+            vec2 horizonAngles = vec2(
+                getMaxHorizonAngle(-sliceDir.xy, screenPos.xy, viewPos, viewDir, stepSize, dither.y),
+                getMaxHorizonAngle( sliceDir.xy, screenPos.xy, viewPos, viewDir, stepSize, dither.y)
+            );
+
+            horizonAngles = gamma + clamp(vec2(-horizonAngles.x, horizonAngles.y) - gamma, -halfPi, halfPi);
+
+            float bentAngle = 0.5 * (horizonAngles.x + horizonAngles.y);
+
+            integratedData.xyz += viewDir * cos(bentAngle) + tangent * sin(bentAngle);
+            integratedData.w   += dot(vec2(0.25), cosGamma + 2.0 * horizonAngles * sin(gamma) - cos(2.0 * horizonAngles - gamma));
+        }
+
+        return vec4(normalize(mat3(gbufferModelViewInverse) * (normalize(integratedData.xyz) - 0.5 * viewDir + 0.2 * viewNormal)), integratedData.w * rcp(float(GTAO_SLICES)));
+    #else
+        return vec4(mat3(gbufferModelViewInverse) * viewNormal, 1.0);
+    #endif
 }
 
-vec4 horizonSearch(
-	inout float maxCosTheta,
-	vec3 screenPos,
-	vec3 viewPos,
-	vec3 viewSliceDir,
-	vec3 viewerDir,
-	vec2 sliceNormal,
-	float maxRadius,
-	float dither
-) {
-	const uint stepCount = HBIL_HORIZON_STEPS;
+vec3 getBouncedSunlight (vec3 shadowViewPos, vec3 bentNormal, vec2 dither, float skylight) {
+    #if SUNLIGHT_GI_SAMPLES > 0
+        vec3 shadowViewNormal = mat3(shadowModelView) * bentNormal;
+        vec2 shadowClipPos = shadowProjScale.xy * shadowViewPos.xy;
 
-	const float stepGrowth = 1.0;
-	const float stepCoeff  = (stepGrowth - 1.0) / (pow(stepGrowth, float(stepCount)) - 1.0);
+        vec2 sampleState = shadowProjScale.x * SUNLIGHT_GI_RANGE * vec2(cos(dither.x * tau * rcp(SUNLIGHT_GI_SAMPLES)), sin(dither.x * tau * rcp(SUNLIGHT_GI_SAMPLES)));
+        mat2 samplePhase = rotate(rcp(SUNLIGHT_GI_SAMPLES) * tau);
 
-	float stepSize = maxRadius * (stepGrowth != 1.0 ? stepCoeff : rcp(float(stepCount)));
+        vec3 integratedData = vec3(0.0);
 
-	vec2 rayStep = (viewToScreenSpace(viewPos + viewSliceDir * stepSize, true) - screenPos).xy;
-	vec2 rayPos  = screenPos.xy + maxOf(viewTexelSize) * normalize(rayStep);
+        for (int i = 0; i < SUNLIGHT_GI_SAMPLES; i++) {
+            float sampleDist = fract(0.4301597 * i + dither.y);
+            sampleState *= samplePhase;
 
-	vec4 irradiance = vec4(0.0);
+            vec2 sampleClipPos = shadowClipPos + sampleDist * sampleState;
+            ivec2 sampleTexel = ivec2(float(shadowMapResolution) * (distortShadowPos(sampleClipPos) * 0.5 + 0.5));
 
-	for (int i = 0; i < stepCount; ++i, rayPos += rayStep) {
-		vec2 ditheredPos = rayPos + rayStep * stepGrowth * dither;
+            vec3 sampleViewVec = shadowProjScaleInv * vec3(sampleClipPos, texelFetch(shadowtex1, sampleTexel, 0).r * 2.0 - 1.0) - shadowViewPos;
 
-		float depth = texelFetch(lodDepthTex1, ivec2(ditheredPos * viewSize - 0.5), 0).x;
+            float sqrLength = dot(sampleViewVec, sampleViewVec);
+            float invLength = inversesqrt(max(0.01, sqrLength));
 
-		if (depth == screenPos.z || depth == 0.0 || depth < handDepth) continue;
+            if (invLength > rcp(SUNLIGHT_GI_RANGE)) {
+                vec4 data0 = texelFetch(shadowcolor0, sampleTexel, 0);
+                vec3 data1 = texelFetch(shadowcolor1, sampleTexel, 0).rgb;
 
-		vec3 offset = screenToViewPos(ditheredPos, depth, true) - viewPos;
+                vec3 radiance =  sampleDist * data0.rgb;
+                     radiance *= smoothstep(-SUNLIGHT_GI_RANGE, -0.75 * SUNLIGHT_GI_RANGE, -sqrLength * invLength);
+                     radiance *= max0(dot(shadowViewNormal, sampleViewVec));
+                     radiance *= max0(-dot(octDecode(data1.rg), sampleViewVec));
+                     radiance *= sqr(invLength * invLength);
+                #ifdef SUNLIGHT_GI_LEAK_FIX
+                     radiance *= exp(-6.0 * abs(data1.b - skylight));
+                #endif
 
-		float lenSq = lengthSquared(offset);
-		float cosTheta = dot(viewerDir, offset) * inversesqrt(lenSq);
+                integratedData += radiance;
+            }
+        }
 
-		float distanceFade = linearStep(0.7 * HBIL_RADIUS, HBIL_RADIUS, sqrt(lenSq));
-		//cosTheta = mix(cosTheta, -1.0, distanceFade);
-
-		if (cosTheta <= maxCosTheta) continue;
-
-		float arcIntegral = integrateArc(sliceNormal, vec2(cosTheta, maxCosTheta));
-
-		vec3 radiance = texture(colortex15, clamp01(ditheredPos) * vec2(1.0, 0.5)).rgb * (1.0 - distanceFade);
-
-		irradiance += arcIntegral * vec4(radiance, 1.0);
-
-		maxCosTheta = cosTheta;
-
-		rayStep *= stepGrowth;
-	}
-
-	return max0(irradiance);
+        return 4.0 * SUNLIGHT_GI_RANGE * SUNLIGHT_GI_RANGE * rcp(SUNLIGHT_GI_SAMPLES) * integratedData;
+    #else
+        return vec3(0.0);
+    #endif
 }
 
-vec4 calculateHbil(
-	vec3 screenPos,
-	vec3 viewPos,
-	vec3 viewNormal,
-	vec2 rng,
-	out vec3 bentNormal
-) {
-	float rcpViewDistance = rcpLength(viewPos);
-	float maxRadius = HBIL_RADIUS;
-
-	bentNormal = vec3(0.0);
-
-	// Set up local camera space (Section 1.1)
-	vec3 viewerDir = viewPos * -rcpViewDistance;
-	vec3 lcsX = normalize(cross(vec3(0.0, 1.0, 0.0), viewerDir));
-	vec3 lcsY = cross(viewerDir, lcsX);
-	mat3 lcsToView = mat3(lcsX, lcsY, viewerDir); // Since lcsToView is a rotation matrix, viewToLcs = transpose(lcsToView)
-
-	vec4 irradiance = vec4(0.0); // irradiance (rgb), ao (a)
-
-	for (int i = 0; i < HBIL_SLICES; ++i) {
-		float sliceAngle = (i + rng.x) * (pi / float(HBIL_SLICES));
-
-		vec3 sliceDir = vec3(cos(sliceAngle), sin(sliceAngle), 0.0);
-		vec3 viewSliceDir = lcsToView * sliceDir;
-
-		// Set up slice space (Section 1.2)
-		mat2x3 sliceToView = mat2x3(viewSliceDir, viewerDir);
-
-		// Project normal vector into slice space
-		vec2 sliceNormal = viewNormal * sliceToView;
-
-		// Initialize horizon angles using the normal (Section 2.1)
-		float t = -sliceNormal.x / sliceNormal.y;
-		vec2 cosTheta = t * inversesqrt(1.0 + sqr(t)) * vec2(1.0, -1.0);
-
-		// Carry out horizon search in each direction
-		irradiance += horizonSearch(cosTheta.x, screenPos, viewPos,  viewSliceDir, viewerDir,                   sliceNormal, maxRadius, rng.y);
-		irradiance += horizonSearch(cosTheta.y, screenPos, viewPos, -viewSliceDir, viewerDir, vec2(-1.0, 1.0) * sliceNormal, maxRadius, rng.y);
-
-		// Update bent normal with new horizon angles
-		bentNormal += integrateNormal(viewSliceDir, viewerDir, cosTheta);
-	}
-
-	bentNormal = mat3(gbufferModelViewInverse) * normalize(bentNormal);
-
-	return irradiance * (pi / float(HBIL_SLICES));
-}
-
-float getBlocklightFalloff(float blocklight, float ao) {
+float adjustBlocklight (float blocklight, float ao) {
 	float falloff  = rcp(sqr(16.0 - 15.0 * blocklight));
 	      falloff  = linearStep(rcp(sqr(16.0)), 1.0, falloff);
 	      falloff *= mix(ao, 1.0, falloff);
@@ -176,19 +164,15 @@ float getBlocklightFalloff(float blocklight, float ao) {
 	return falloff;
 }
 
-float getSkylightFalloff(float skylight) {
+float adjustSkylight (float skylight) {
 	return pow4(skylight);
 }
 
 void main() {
-#ifndef HBIL
-	#error "This program should be disabled if HBIL is disabled"
-#endif
-
 	ivec2 texel     = ivec2(gl_FragCoord.xy);
-    ivec2 viewTexel = ivec2(gl_FragCoord.xy * rcp(hbilRenderScale));
+    ivec2 viewTexel = ivec2(gl_FragCoord.xy * rcp(indirectRenderScale));
 
-	vec2 coord = gl_FragCoord.xy * viewTexelSize * rcp(hbilRenderScale);
+	vec2 coord = gl_FragCoord.xy * viewTexelSize * rcp(indirectRenderScale);
 
 	if (clamp01(coord) != coord) discard;
 
@@ -201,12 +185,6 @@ void main() {
 	if (depth == 0.0) { data = vec4(0.0); return; }
 	//if (depth < handDepth) depth += 0.38; // Hand lighting fix from Capt Tatsu
 
-	/* -- transformations  -- */
-
-	vec3 screenPos = vec3(coord, depth);
-	vec3 viewPos = screenToViewPos(coord, depth, true);
-	vec3 viewerDir = normalize(viewPos);
-
 	/* -- unpack gbuffer  -- */
 
 	vec2 lmCoord = unpackUnorm4x8(encoded.y).zw;
@@ -218,34 +196,46 @@ void main() {
 	vec2 encodedNormal = unpackUnorm4x8(encoded.y).xy;
 #endif
 
-	vec3 worldNormal = decodeUnitVector(encodedNormal);
+	vec3 worldNormal = octDecode(encodedNormal);
 	vec3 viewNormal  = mat3(gbufferModelView) * worldNormal;
+
+	/* -- transformations  -- */
+
+	vec3 screenPos = vec3(coord, depth);
+	vec3 viewPos = screenToViewPos(coord, depth, true);
+	vec3 scenePos = transform(gbufferModelViewInverse, viewPos);
 
 	/* -- indirect lighting -- */
 
 	vec2 rng = R2(frameCounter, dither);
+	vec3 irradiance = vec3(0.0);
 
-	vec3 bentNormal;
-	vec4 hbil = calculateHbil(screenPos, viewPos, viewNormal, rng, bentNormal);
+	// Ambient occlusion
 
-	vec3 irradiance = hbil.xyz;
-	float visibility = 1.0 - hbil.w * rcpPi;
+	vec4 ao = getAmbientOcclusion(screenPos, viewPos, viewNormal, rng);
+
+	// Sunlight GI
+
+	vec3 shadowViewPos = transform(shadowModelView, scenePos);
+	vec3 sunlight = getBouncedSunlight(shadowViewPos, worldNormal, rng, lmCoord.y);
+
+	irradiance += ao.w * directIrradiance * sunlight;
 
 	// Blocklight
 
 	vec3 blocklightColor = blackbody(BLOCKLIGHT_TEMPERATURE);
-	float blocklightFalloff = getBlocklightFalloff(lmCoord.x, visibility);
+	float blocklightFalloff = adjustBlocklight(lmCoord.x, ao.w);
 	irradiance += 32.0 * blocklightColor * blocklightFalloff;
 
 	// Skylight
 
-	vec3 skylight = evaluateSphericalHarmonicsIrradiance(skySh, bentNormal, visibility);
+	vec3 skylight = evaluateSphericalHarmonicsIrradiance(skySh, ao.xyz, ao.w);
 
-	irradiance += skylight * pow4(lmCoord.y);
+	irradiance += adjustSkylight(lmCoord.y) * skylight;
 
 	// Ambient light
 
-	irradiance += ambientIrradiance * visibility;
+	irradiance += ao.w * ambientIrradiance;
 
 	/* -- pack irradiance and gbuffer data -- */
 

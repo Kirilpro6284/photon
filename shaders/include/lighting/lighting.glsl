@@ -83,7 +83,7 @@ vec3 getSceneLighting(
 	vec3 geometryNormal,
 	vec3 viewerDir,
 	vec3 directIrradiance,
-#if defined PROGRAM_DEFERRED_LIGHTING && defined HBIL
+#if defined PROGRAM_DEFERRED_LIGHTING && defined INDIRECT_LIGHTING
 	vec3 indirectIrradiance,
 #else
 	vec3 ambientIrradiance,
@@ -113,7 +113,32 @@ vec3 getSceneLighting(
 
 	float blockerDepth = getBlockerDepth(shadowViewPos, dither);
 
-	vec3 visibility = NoL * calculateShadows(shadowViewPos, geometryNormal, blockId, cloudShadow, lmCoord.y, NoL, dither, blockerDepth);
+	vec3 visibility = calculateShadows(
+		shadowViewPos, 
+		geometryNormal, 
+		blockId, 
+		cloudShadow, 
+		lmCoord.y, 
+		NoL,
+		dither, 
+		blockerDepth
+	);
+
+	float invDist = rcp(min(far, shadowDistance));
+
+	float lodGradient = smoothstep(0.9, 1.0, length(scenePos) * invDist);
+	float shadowGradient = dot(scenePos, shadowDir) > 0.0 ? lodGradient : smoothstep(0.9, 1.0, length(shadowViewPos.xy) * invDist);
+
+	sssDepth = blockerDepth;
+	
+	if (lodGradient > 0.0) {
+		float distantSss;
+
+		visibility = (visibility * (1.0 - shadowGradient) + shadowGradient) * (getScreenSpaceShadows(viewPos, dither, distantSss) * lodGradient + (1.0 - lodGradient));
+		sssDepth = mix(sssDepth, distantSss, lodGradient);
+	}
+
+	visibility *= NoL;
 
 	if (maxOf(visibility) > eps || material.sssAmount > eps) {
 		float NoV = clamp01(dot(normal, viewerDir));
@@ -121,17 +146,6 @@ vec3 getSceneLighting(
 		float halfwayNorm = inversesqrt(2.0 * LoV + 2.0);
 		float NoH = (NoL + NoV) * halfwayNorm;
 		float LoH = LoV * halfwayNorm + halfwayNorm;
-
-		float lodGradient = smoothstep(0.9, 1.0, length(scenePos) / min(far, shadowDistance));
-
-		sssDepth = blockerDepth;
-		
-		if (lodGradient > 0.0) {
-			float distantSss;
-
-			visibility = mix(visibility, NoL * getScreenSpaceShadows(viewPos, dither, distantSss), lodGradient);
-			sssDepth = mix(sssDepth, distantSss, lodGradient);
-		}
 
 		vec3 diffuse = diffuseHammon(material, NoL, NoV, NoH, LoV) * (1.0 - 0.75 * material.sssAmount);
 		vec3 specular = getSpecularHighlight(material, NoL, NoV, NoH, LoV, LoH);
@@ -143,7 +157,7 @@ vec3 getSceneLighting(
 
 	vec3 bsdf = material.albedo * rcpPi * float(!material.isMetal);
 
-#if defined PROGRAM_DEFERRED_LIGHTING && defined HBIL
+#if defined PROGRAM_DEFERRED_LIGHTING && defined INDIRECT_LIGHTING
 	// Indirect lighting already computed alongside HBIL
 	radiance += indirectIrradiance * ao * bsdf;
 #else

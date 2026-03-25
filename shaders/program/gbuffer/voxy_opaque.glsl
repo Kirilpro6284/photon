@@ -49,7 +49,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 
     data[0].xyz = baseTex.rgb;
     data[0].w   = max0(float(parameters.customId) - 10000.0) * rcp(255.0);
-    data[1].xy  = encodeUnitVector(normal);
+    data[1].xy  = octEncode(normal);
     data[1].zw  = dither8Bit(parameters.lightMap * 32.0 / 31.0, dither);
 
     encoded.x = packUnorm4x8(data[0]);
@@ -57,7 +57,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 
 #ifdef NORMAL_MAP
 	// Pack encoded normal in first 24 bits, material AO in next 7 and parallax shadow in final bit
-	vec4 normalData = vec4(encodeUnitVector(normal), 0.0, 1.0);
+	vec4 normalData = vec4(octEncode(normal), 0.0, 1.0);
 	encoded.z = packUnormArb(normalData, uvec4(12, 12, 7, 1));
 #endif
 

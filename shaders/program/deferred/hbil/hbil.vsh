@@ -10,6 +10,7 @@
 flat out vec3[9] skySh;
 
 flat out vec3 ambientIrradiance;
+flat out vec3 directIrradiance;
 flat out vec3 skyIrradiance;
 
 //--// Uniforms //------------------------------------------------------------//
@@ -30,6 +31,7 @@ uniform sampler2D skyCapture; // Sky capture, lighting color palette, dynamic we
 
 void main() {
 	ambientIrradiance = texelFetch(skyCapture, ivec2(255, 0), 0).rgb;
+	directIrradiance  = texelFetch(skyCapture, ivec2(255, 1), 0).rgb;
 	skyIrradiance     = texelFetch(skyCapture, ivec2(255, 2), 0).rgb;
 
 #ifdef SH_SKYLIGHT

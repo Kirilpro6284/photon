@@ -31,7 +31,7 @@ uniform sampler2D colortex14; // Temporally stable linear depth
 
 //--// Functions //-----------------------------------------------------------//
 
-const float hbilRenderScale = 0.01 * HBIL_RENDER_SCALE;
+const float hbilRenderScale = 0.01 * INDIRECT_RENDER_SCALE;
 
 ivec2 viewportSize = ivec2(viewSize * hbilRenderScale);
 
@@ -73,7 +73,7 @@ void processSample(inout vec3 irradiance, inout float weightSum, vec4 data, ivec
 	if (clamp(texel, ivec2(0), viewportSize - 1) != texel) return;
 
 	vec3 irradianceSample = decodeRgbe8(vec4(unpackUnorm2x8(data.x), unpackUnorm2x8(data.y)));
-	vec3 normalSample = decodeUnitVector(unpackUnorm2x8(data.w));
+	vec3 normalSample = octDecode(unpackUnorm2x8(data.w));
 	float depthSample = data.z * renderDistance;
 
 	float depthWeight    = depthWeight(depth, depthSample, NoV);
@@ -96,8 +96,18 @@ void main() {
 
 	if (depth == 0.0 || clamp01(coord) != coord) { data = vec4(0.0); return; }
 
+	uvec3 encoded = texelFetch(colortex1, viewTexel, 0).xyz;
+
 	vec3 screenPos = vec3(coord, depth);
 	vec3 viewPos = screenToViewPos(coord, depth, true);
+
+	/* -- unpack gbuffer  -- */
+
+	vec2 encodedNormal = unpackUnorm4x8(encoded.y).xy;
+	vec3 geoNormal  = mat3(gbufferModelView) * octDecode(encodedNormal);
+
+    // Equivalent to vec2(dFdx(rcp(viewPos.z)), dFdy(rcp(viewPos.z)))
+    vec2 depthDiff = -2.0 * vec2(lodProjMatInv_0.x, lodProjMatInv_1.y) * viewTexelSize * geoNormal.xy / dot(viewPos, geoNormal);
 
 	//--// Spatial reconstruction
 
@@ -130,7 +140,7 @@ void main() {
 	vec3 irradiance = decodeRgbe8(vec4(unpackUnorm2x8(e.x), unpackUnorm2x8(e.y)));
 	float weightSum = 1.0;
 
-	vec3 normal = decodeUnitVector(unpackUnorm2x8(e.w));
+	vec3 normal = octDecode(unpackUnorm2x8(e.w));
 	vec3 viewNormal = mat3(gbufferModelView) * normal;
 
 	float z = e.z * renderDistance;
@@ -167,7 +177,7 @@ void main() {
 		float z1 = texture(colortex14, previousScreenPos.xy).x;
 		float depthWeight = depthWeight(z0, z1, NoV);
 
-		float pixelAge  = min(irradianceHistory.w, float(HBIL_ACCUMULATION_LIMIT));
+		float pixelAge  = min(irradianceHistory.w, rcp(INDIRECT_TEMPORAL_BLEND_WEIGHT));
 		      pixelAge *= depthWeight * lightmapWeight.x * lightmapWeight.y;
 		      pixelAge *= float(!worldAgeChanged);
 		      pixelAge += 1.0;

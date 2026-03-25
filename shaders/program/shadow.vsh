@@ -2,6 +2,7 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
+out float skylight;
 out vec2 texCoord;
 out vec3 worldPos;
 
@@ -36,6 +37,7 @@ uniform sampler2D noisetex;
 //--// Functions //-----------------------------------------------------------//
 
 void main() {
+	skylight = gl_MultiTexCoord1.y * rcp(240.0);
 	texCoord = gl_MultiTexCoord0.xy;
 	blockId  = uint(mc_Entity.x - 10000.0);
 	normal   = mat3(shadowModelViewInverse) * normalize(gl_NormalMatrix * gl_Normal);

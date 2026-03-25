@@ -89,10 +89,10 @@ vec3 reprojectClouds(vec2 coord, float distanceToCloud) {
 	     
 	if (advanceTime) velocity += windSpeed * frameTime * vec3(cos(windAngle), sin(windAngle), 0.0).xzy;
 
-	vec3 previousPos = transform(gbufferPreviousModelView, pos + gbufferModelViewInverse[3].xyz - velocity);
-	     previousPos = projectAndDivide(lodProjMatPrev0, previousPos);
+	vec4 prevPos = lodProjMatPrev0 * gbufferPreviousModelView * vec4(pos + gbufferModelViewInverse[3].xyz - velocity, 1.0);
+	     prevPos.xyz /= prevPos.w;
 
-	return vec3(previousPos.xy * 0.5 + 0.5, previousPos.z * -0.5);
+	return prevPos.w > 0.0 ? vec3(prevPos.xy * 0.5 + 0.5, prevPos.z * -0.5) : vec3(-10.0);
 }
 
 vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
@@ -151,7 +151,8 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	uint pixelAge = texelFetch(colortex4, ivec2(previousCoord.xy * viewSize * cloudsRenderScale), 0).x;
 
 	if (invalidHistory) {
-		current = history = textureBicubic(colortex5, coord * cloudsRenderScale) * currentScale;
+		current = textureBicubic(colortex5, coord * cloudsRenderScale) * currentScale;
+		history = current;
 		pixelAge = 0;
 	}
 
@@ -176,7 +177,7 @@ vec4 upscaleClouds(ivec2 dstTexel, vec3 positionScreen) {
 	// Checkerboard upscaling
 	ivec2 offset0 = dstTexel % ivec2(rcp(cloudsRenderScale));
 	ivec2 offset1 = checkerboardOffsets[frameCounter % CLOUDS_UPSCALING_FACTOR];
-	if (offset0 != offset1) current = historySmooth;
+	if (offset0 != offset1 && pixelAge > 1u) current = historySmooth;
 
 	current.rgb = mix(current.rgb, history.rgb, historyWeight);
 	current.w = min(history.w, current.w);

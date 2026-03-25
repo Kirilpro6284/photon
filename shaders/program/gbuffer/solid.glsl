@@ -93,7 +93,7 @@ void main() {
 #else
 	data[0].w   = float(blockId) * rcp(255.0);
 #endif
-	data[1].xy  = encodeUnitVector(tbnMatrix[2]);
+	data[1].xy  = octEncode(tbnMatrix[2]);
 	data[1].zw  = dither8Bit(lmCoord, dither);
 
 	encoded.x = packUnorm4x8(data[0]);
@@ -101,7 +101,7 @@ void main() {
 
 #ifdef NORMAL_MAP
 	// Pack encoded normal in first 24 bits, material AO in next 7 and parallax shadow in final bit
-	vec4 normalData = vec4(encodeUnitVector(normal), ao, 1.0);
+	vec4 normalData = vec4(octEncode(normal), ao, 1.0);
 	encoded.z = packUnormArb(normalData, uvec4(12, 12, 7, 1));
 #endif
 

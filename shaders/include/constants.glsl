@@ -14,7 +14,7 @@
 12 | r32f    | fullscreen        | reversed-z depth buffer (solid)
 13 | rgba16f | TAA render scale  | previous frame depth, previous frame light levels
 14 | r32f    | fullscreen        | temporally stable depth buffer
-15 | rgb11f  | 960x1080          | reprojected scene history for HBIL, cloud shadow map, bloom buffer
+15 | rgb11f  | 960x1080          | cloud shadow map, bloom buffer
 16 | rgba16f | fullscreen        | voxy translucents
 17 | rgba16  | fullscreen        | voxy water mask
 
@@ -37,6 +37,7 @@ const int colortex16Format = RGBA16F;
 const int colortex17Format = RGBA16;
 
 const int shadowcolor0Format = R11F_G11F_B10F;
+const int shadowcolor1Format = RGB8;
 
 const bool colortex0Clear  = true;
 const bool colortex1Clear  = true;
@@ -58,7 +59,11 @@ const bool colortex16Clear = true;
 const bool colortex17Clear = true;
 
 const vec4 colortex0ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
+const vec4 colortex2ClearColor = vec4(0.0, 0.0, 0.0, 1.0);
 const vec4 colortex9ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+const vec4 shadowcolor0ClearColor = vec4(0.0, 0.0, 0.0, 1.0);
+const vec4 shadowcolor1ClearColor = vec4(0.0, 0.0, 0.0, 1.0);
 */
 // Select texture format for colortex1 based on how much data is required
 // This is formatted like this because OF doesn't detect #if defined so I can't use #elif or ||

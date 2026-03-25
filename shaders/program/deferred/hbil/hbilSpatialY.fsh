@@ -25,7 +25,7 @@ uniform sampler2D colortex10; // Indirect lighting history
 
 //--// Functions //-----------------------------------------------------------//
 
-const float hbilRenderScale = 0.01 * HBIL_RENDER_SCALE;
+const float hbilRenderScale = 0.01 * INDIRECT_RENDER_SCALE;
 
 ivec2 viewportSize = ivec2(viewSize * hbilRenderScale);
 
@@ -51,7 +51,7 @@ vec4 weighHbilSample(vec4 data, vec3 normal, float z0, float offset, float NoV, 
 
 	if (!isSky) {
 		vec3 irradianceSample = decodeRgbe8(vec4(unpackUnorm2x8(data.x), unpackUnorm2x8(data.y)));
-		vec3 normalSample = decodeUnitVector(unpackUnorm2x8(data.w));
+		vec3 normalSample = octDecode(unpackUnorm2x8(data.w));
 
 		float z1 = data.z * renderDistance;
 
@@ -100,7 +100,7 @@ void main() {
 	// decode center sample
 	vec3 irradiance = decodeRgbe8(vec4(unpackUnorm2x8(d.x), unpackUnorm2x8(d.y)));
 
-	vec3 normal = decodeUnitVector(unpackUnorm2x8(d.w));
+	vec3 normal = octDecode(unpackUnorm2x8(d.w));
 	vec3 viewNormal = mat3(gbufferModelView) * normal;
 
 	float z = d.z * renderDistance;

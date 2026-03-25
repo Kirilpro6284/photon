@@ -30,7 +30,7 @@ void main() {
 	mat2x4 data;
 	data[0].xyz = tint;
 	data[0].w   = 0.0;
-	data[1].xy  = encodeUnitVector(normal);
+	data[1].xy  = octEncode(normal);
 	data[1].zw  = vec2(0.0);
 
 	encoded.x = packUnorm4x8(data[0]);
@@ -38,7 +38,7 @@ void main() {
 
 #ifdef NORMAL_MAP
 	// Pack encoded normal in first 24 bits, material AO in next 7 and parallax shadow in final bit
-	vec4 normalData = vec4(encodeUnitVector(normal), 1.0, 1.0);
+	vec4 normalData = vec4(octEncode(normal), 1.0, 1.0);
 	encoded.z = packUnormArb(normalData, uvec4(12, 12, 7, 1));
 #endif
 
