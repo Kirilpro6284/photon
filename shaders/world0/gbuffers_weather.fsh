@@ -46,7 +46,7 @@ const float snowOpacity = 0.8;
 
 void main() {
 #if TAA_UPSCALING_FACTOR > 1
-	vec2 coord = gl_FragCoord.xy * viewTexelSize;
+	vec2 coord = gl_FragCoord.xy * internalTexelSize;
 	if (clamp01(coord) != coord) discard;
 #endif
 

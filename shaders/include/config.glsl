@@ -10,24 +10,22 @@ const int shadowMapResolution      = 2048; // [1024 1536 2048 3072 4096]
 const float shadowDistance         = 144.0; // [64.0 80.0 96.0 112.0 128.0 144.0 160.0 176.0 192.0 208.0 224.0 240.0 256.0 320.0 384.0 512.0 768.0 1024.0]
 const float voxelDistance          = 32.0;
 const float shadowIntervalSize     = 2.0;
-const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -15.0 -10.0 -5.0 0.0 5.0 10.0 15.0 20.0 25.0 30.0 35.0 40.0]
+const float sunPathRotation        = -35.0; // [-45.0 -40.0 -35.0 -30.0 -25.0 -20.0 -15.0 -10.0 -5.0 0.0 5.0 10.0 15.0 20.0 25.0 30.0 35.0 40.0 45.0]
 
 // this really helps performance with higher render distances, but it also kills some distant shadows
-//const float shadowDistanceRenderMul = 1.0;
+const float shadowDistanceRenderMul = 1.0;
 
 //--// Atmospherics //--------------------------------------------------------//
 
   #define HIDE_PLANET_SURFACE // Hide the planet surface from the atmosphere simulation
   #define WORLD_TIME_ANIMATION // Animated atmospherics (like clouds) are synchronised with the world time. This means that people playing together on the same server will see the same clouds in the sky. It also means that if doDaylightCycle is disabled then the clouds will not move
-  #define SEA_LEVEL 63.0 // The y coordinate of the sea/ground. -60.0: Superflat post-1.18. 4.0: Superflat pre-1.18. 63.0: Normal. [-60.0 4.0 63.0]
+  #define SEA_LEVEL 63.0 // The y coordinate of the sea/ground. -60.0: Superflat post-1.18. 4.0: Superflat pre-1.18. 63.0: Normal. [-60.0 -56.0 -52.0 -48.0 -44.0 -40.0 -36.0 -32.0 -28.0 -24.0 -20.0 -16.0 -12.0 -8.0 -4.0 0.0 4.0 8.0 12.0 16.0 20.0 24.0 28.0 32.0 36.0 40.0 44.0 48.0 52.0 56.0 60.0 63.0]
   #define MOON_PHASE_AFFECTS_BRIGHTNESS // Night time brightness is affected by the moon phase
 
 //--// Clouds
 
-  #define CLOUDS_UPSCALING_FACTOR 16 // Renders clouds at a lower resolution and uses checkerboard upscaling to fill in the rest. More temporal upscaling means that clouds are rendered at a lower internal resolution; disabling temporal upscaling results in the best quality clouds but the worst performance. This does not take into account the TAA upscaling factor, so if the clouds upscaling factor is 9x and the TAA upscaling factor is 2x, then the clouds are actually being upscaled to 18x their source resolution [1 2 4 8 9 16]
-  #define CLOUDS_MIN_ACCUMULATION_LIMIT 0.9
-  #define CLOUDS_MAX_ACCUMULATION_LIMIT 0.4
-  #define CLOUDS_SCALE 7.0 // Applied as a scale factor to all clouds, to bring the clouds from a realistic size and altitude to an altitude that is accessible during gameplay. If this value is 1.0, clouds are positioned realistically, with the first layer 800 blocks up by default. If this value is higher, then clouds will appear smaller and form closer to the ground. This also affects the size of cloud shadows // [1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 15.0]
+  #define CLOUDS_TEMPORAL_UPSAMPLING 8 // Renders clouds at a lower resolution and uses checkerboard upscaling to fill in the rest. More temporal upscaling means that clouds are rendered at a lower internal resolution; disabling temporal upscaling results in the best quality clouds but the worst performance. This does not take into account the TAA upscaling factor, so if the clouds upscaling factor is 9x and the TAA upscaling factor is 2x, then the clouds are actually being upscaled to 18x their source resolution [1 2 4 8 9 16]
+  #define CLOUDS_SCALE 0.25 // [0.05 0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.20 0.21 0.22 0.23 0.24 0.25 0.26 0.27 0.28 0.29 0.30 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.40 0.41 0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.50 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 0.60 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.70 0.71 0.72 0.73 0.74 0.75 0.76 0.77 0.78 0.79 0.80 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.90 0.91 0.92 0.93 0.94 0.95 0.96 0.97 0.98 0.99 1.00]
 
   #define CLOUDS_MODE_PLANAR 0
   #define CLOUDS_MODE_VOLUMETRIC 1
@@ -91,7 +89,7 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
 
   #define CLOUDS_LAYER3
   #define CLOUDS_LAYER3_MODE CLOUDS_MODE_PLANAR // [CLOUDS_MODE_PLANAR CLOUDS_MODE_VOLUMETRIC]
-  #define CLOUDS_LAYER3_SHADOW
+//#define CLOUDS_LAYER3_SHADOW
   #define CLOUDS_LAYER3_PRIMARY_STEPS 10 // [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80]
   #define CLOUDS_LAYER3_LIGHTING_STEPS 4 // [1 2 3 4 5 6 7 8]
   #define CLOUDS_LAYER3_ALTITUDE 10000.0 // [400.0 500.0 600.0 700.0 800.0 900.0 1000.0 1100.0 1200.0 1300.0 1400.0 1500.0 1600.0 1700.0 1800.0 1900.0 2000.0 2100.0 2200.0 2300.0 2400.0 2500.0 2600.0 2700.0 2800.0 2900.0 3000.0 3100.0 3200.0 3300.0 3400.0 3500.0 3600.0 3700.0 3800.0 3900.0 4000.0 4100.0 4200.0 4300.0 4400.0 4500.0 4600.0 4700.0 4800.0 4900.0 5000.0 5100.0 5200.0 5300.0 5400.0 5500.0 5600.0 5700.0 5800.0 5900.0 6000.0 6100.0 6200.0 6300.0 6400.0 6500.0 6600.0 6700.0 6800.0 6900.0 7000.0 7100.0 7200.0 7300.0 7400.0 7500.0 7600.0 7700.0 7800.0 7900.0 8000.0 8100.0 8200.0 8300.0 8400.0 8500.0 8600.0 8700.0 8800.0 8900.0 9000.0 9100.0 9200.0 9300.0 9400.0 9500.0 9600.0 9700.0 9800.0 9900.0 10000.0]
@@ -279,7 +277,7 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
   #define TAA_UPSCALING_FACTOR 1 // Renders the scene at a reduced resolution and uses TAA to upscale it. More temporal upscaling means that the scene is rendered at a lower internal resolution; 2x temporal upscaling means that half as many pixels are shaded each frame as when temporal upscaling is disabled (this does not apply to post-processing effects). May impact image quality and responsiveness. Requires Temporal AA! [1 2 4]
 //#define TAA_SKIP_CLIPPING // Disables neighborhood clipping. Enabling this option may increase image quality, especially with temporal upscaling, but results in terrible ghosting. This option should only be used for taking screenshots!
   #define TAA_VARIANCE_CLIPPING // More aggressive neighborhood clipping method which further reduces ghosting but can introduce flickering artifacts
-  #define TAA_BLEND_WEIGHT 0.125 // The maximum weight given to the current frame by the temporal AA. Higher values result in reduced ghosting and blur but jittering is more obvious [0.025 0.05 0.075 0.1 0.125 0.15 0.175 0.2 0.225 0.25]
+  #define TAA_HISTORY_W_CLAMP 8.0
   #define TAA_CONFIDENCE_REJECTION 5.0 // Controls the impact of the "confidence-of-quality" factor on temporal upscaling. Tradeoff between image clarity and time taken to converge [0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0 6.5 7.0 7.5 8.0 8.5 9.0 9.5 10.0]
   #define TAA_OFFCENTER_REJECTION 0.2 // Reduces blur when moving quickly. Too much offcenter rejection results in aliasing and jittering in motion [0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.20 0.21 0.22 0.23 0.25]
   #define TAA_FLICKER_REDUCTION 1.00 // Reduces flickering caused by aggressive clipping [0.0 0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5 0.55 0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 1.0]
@@ -367,6 +365,7 @@ const float sunPathRotation        = -40.0; // [-40.0 -35.0 -30.0 -25.0 -20.0 -1
   #define DEBUG_VIEW DEBUG_VIEW_NONE // [DEBUG_VIEW_NONE DEBUG_VIEW_SAMPLER DEBUG_VIEW_WEATHER DEBUG_VIEW_HISTOGRAM]
   #define DEBUG_SAMPLER colortex0 // [colortex0 colortex1 colortex2 colortex3 colortex4 colortex5 colortex6 colortex7 colortex8 colortex9 colortex10 colortex11 colortex12 colortex13 colortex14 colortex15 depthtex0 depthtex1 depthtex2 shadowtex0 shadowtex1 shadowcolor0 shadowcolor1]
   #define DEBUG_SAMPLER_EXPOSURE 1.0 // [0.00001 0.0001 0.001 0.01 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.1 2.2 2.3 2.4 2.5 2.6 2.7 2.8 2.9 3.0 3.1 3.2 3.3 3.4 3.5 3.6 3.7 3.8 3.9 4.0 4.1 4.2 4.3 4.4 4.5 4.6 4.7 4.8 4.9 5.0 5.1 5.2 5.3 5.4 5.5 5.6 5.7 5.8 5.9 6.0 6.1 6.2 6.3 6.4 6.5 6.6 6.7 6.8 6.9 7.0 7.1 7.2 7.3 7.4 7.5 7.6 7.7 7.8 7.9 8.0 8.1 8.2 8.3 8.4 8.5 8.6 8.7 8.8 8.9 9.0 9.1 9.2 9.3 9.4 9.5 9.6 9.7 9.8 9.9 10.0 20.0 30.0 40.0 50.0 100.0 200.0]
+  #define DEBUG_SAMPLER_CHANNEL rgb // [rgb r g b a]
 
   // Required so that OptiFine detects them
 

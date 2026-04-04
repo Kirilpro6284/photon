@@ -22,7 +22,6 @@ flat in mat3 whiteBalanceMatrix;
 uniform usampler2D colortex1; // Scene data
 uniform sampler2D colortex5;  // Bloomy fog amount
 uniform sampler2D colortex8;  // Scene history and exposure
-uniform sampler2D colortex14; // Temporally stable linear depth
 uniform sampler2D colortex15; // Bloom tiles
 
 //--// Includes //------------------------------------------------------------//
@@ -211,7 +210,6 @@ void main() {
 
 	uvec2 sceneData = texelFetch(colortex1, ivec2(texel * renderScale), 0).xy;
 	fragColor       = texelFetch(colortex8, texel, 0).rgb;
-	float linearZ   = texelFetch(colortex14, texel, 0).x;
 
 	uint blockId     = uint(unpackUnorm4x8(sceneData.x).w * 255.0);
 	float blocklight = unpackUnorm4x8(sceneData.y).z;

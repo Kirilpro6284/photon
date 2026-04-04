@@ -44,7 +44,7 @@ float cloudsPowderEffect(float density, float cosTheta) {
 }
 
 float cloudVolumeDensity(CloudLayer layer, vec3 pos, float altitudeFraction, uint lod) {
-	pos.xz += cameraPosition.xz * CLOUDS_SCALE;
+	pos.xz += cameraPosition.xz * rcp(CLOUDS_SCALE);
 
 	vec2 pos2D = pos.xz * layer.frequency + layer.randomOffset + layer.wind;
 
@@ -189,7 +189,7 @@ vec4 renderCloudVolume(
 ) {
 	/* -- raymarching setup -- */
 
-	const float maxRayLength     = 1e5;
+	const float maxRayLength     = 2e4;
 	const float minTransmittance = 0.075;
 	const float primaryStepsMulH = 1.0;
 	const float primaryStepsMulV = 0.5;
@@ -202,7 +202,7 @@ vec4 renderCloudVolume(
 	vec2 dists = intersectSphericalShell(rayOrigin, rayDir, layer.radius, layer.radius + layer.thickness);
 
 	bool planetIntersected = intersectSphere(rayOrigin, rayDir, min(r - 10.0, planetRadius)).y >= 0.0;
-	bool terrainIntersected = distanceToTerrain >= 0.0 && r < layer.radius && distanceToTerrain * CLOUDS_SCALE < dists.y;
+	bool terrainIntersected = distanceToTerrain >= 0.0 && r < layer.radius && distanceToTerrain * rcp(CLOUDS_SCALE) < dists.y;
 
 	if (dists.y < 0.0                         // volume not intersected
 	 || planetIntersected && r < layer.radius // planet blocking clouds
@@ -211,7 +211,7 @@ vec4 renderCloudVolume(
 		return vec4(0.0, 0.0, 1.0, 1e6);
 	}
 
-	float rayLength = (distanceToTerrain >= 0.0) ? distanceToTerrain : dists.y;
+	float rayLength = (distanceToTerrain >= 0.0) ? min(distanceToTerrain, dists.y) : dists.y;
 	      rayLength = clamp(rayLength - dists.x, 0.0, maxRayLength);
 
 	float stepLength = rayLength * rcp(float(primarySteps));
@@ -310,7 +310,7 @@ vec2 curl2D(vec2 coord) {
 }
 
 float cloudPlaneDensity(CloudLayer layer, vec2 coord, float altitudeFraction) {
-	coord = coord + cameraPosition.xz * CLOUDS_SCALE;
+	coord = coord + cameraPosition.xz * rcp(CLOUDS_SCALE);
 	coord = coord * layer.frequency + layer.wind + layer.randomOffset;
 
 	vec2 curl = 0.5 * curl2D(0.00002 * coord)
@@ -484,6 +484,10 @@ vec4 renderCloudPlane(
 	return vec4(scattering, viewTransmittance, distanceToSphere);
 }
 
+vec4 blendCloudLayers (vec4 clouds0, vec4 clouds1) {
+	return vec4(clouds0.xy + clouds0.z * clouds1.xy, clouds0.z * clouds1.z, min(clouds0.w, clouds1.w));
+}
+
 /* -- */
 
 vec4 renderClouds(
@@ -546,7 +550,7 @@ vec4 renderClouds(
 		CLOUDS_LAYER0_LIGHTING_STEPS
 	);
 
-	if (result.z < 0.05) return result;
+	if (result.z < 0.05 && eyeAltitude < (mix(CLOUDS_LAYER0_ALTITUDE, CLOUDS_LAYER1_ALTITUDE, 0.75) * CLOUDS_SCALE + SEA_LEVEL)) return result;
 #endif
 
 #ifdef CLOUDS_LAYER1 // layer 1 (altocumulus, altostratus)
@@ -575,11 +579,9 @@ vec4 renderClouds(
 		CLOUDS_LAYER1_LIGHTING_STEPS
 	);
 
-	result.xy = result.xy + result.z * resultTemp.xy;
-	result.z *= resultTemp.z;
-	result.w  = min(result.w, resultTemp.w);
+	result = eyeAltitude > (mix(CLOUDS_LAYER0_ALTITUDE, CLOUDS_LAYER1_ALTITUDE, 0.75) * CLOUDS_SCALE + SEA_LEVEL) ? blendCloudLayers(resultTemp, result) : blendCloudLayers(result, resultTemp);
 
-	if (result.z < 0.05) return result;
+	if (result.z < 0.05 && eyeAltitude < (mix(CLOUDS_LAYER1_ALTITUDE, CLOUDS_LAYER2_ALTITUDE, 0.75) * CLOUDS_SCALE + SEA_LEVEL)) return result;
 #endif
 
 	/* -- planar clouds -- */
@@ -632,11 +634,9 @@ vec4 renderClouds(
 	);
 #endif
 
-	result.xy = result.xy + result.z * resultTemp.xy;
-	result.z *= resultTemp.z;
-	result.w  = min(result.w, resultTemp.w);
+	result = eyeAltitude > (mix(CLOUDS_LAYER1_ALTITUDE, CLOUDS_LAYER2_ALTITUDE, 0.75) * CLOUDS_SCALE + SEA_LEVEL) ? blendCloudLayers(resultTemp, result) : blendCloudLayers(result, resultTemp);
 
-	if (result.z < 0.05) return result;
+	if (result.z < 0.05 && eyeAltitude < (mix(CLOUDS_LAYER2_ALTITUDE, CLOUDS_LAYER3_ALTITUDE, 0.75) * CLOUDS_SCALE + SEA_LEVEL)) return result;
 #endif
 
 #ifdef CLOUDS_LAYER3 // layer 3 (cirrus)
@@ -685,9 +685,7 @@ vec4 renderClouds(
 	);
 #endif
 
-	result.xy = result.xy + result.z * resultTemp.xy;
-	result.z *= resultTemp.z;
-	result.w  = min(result.w, resultTemp.w);
+	result = eyeAltitude > (mix(CLOUDS_LAYER2_ALTITUDE, CLOUDS_LAYER3_ALTITUDE, 0.75) * CLOUDS_SCALE + SEA_LEVEL) ? blendCloudLayers(resultTemp, result) : blendCloudLayers(result, resultTemp);
 
 	if (result.z < 0.05) return result;
 #endif

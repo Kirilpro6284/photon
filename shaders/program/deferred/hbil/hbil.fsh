@@ -11,8 +11,9 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 5 */
-layout (location = 0) out vec4 data;
+/* RENDERTARGETS: 10,13 */
+layout (location = 0) out vec4 irradianceHistory;
+layout (location = 1) out vec4 temporalData;
 
 //--// Inputs //--------------------------------------------------------------//
 
@@ -27,6 +28,9 @@ flat in vec3 skyIrradiance;
 uniform sampler2D noisetex;
 
 uniform usampler2D colortex1; // Scene data
+uniform sampler2D colortex10; // Irradiance history
+uniform sampler2D colortex13; // Previous frame depth + normal
+uniform sampler2D colortex15; // Cloud shadow map
 
 uniform sampler2D shadowcolor0; // Shadow albedo
 uniform sampler2D shadowcolor1; // Shadow normal & skylight
@@ -36,6 +40,8 @@ uniform sampler2D shadowtex1;
 uniform sampler2D lodDepthTex1;
 
 //--// Includes //------------------------------------------------------------//
+
+#define TEMPORAL_REPROJECTION
 
 #include "/include/lighting/shadowDistortion.glsl"
 #include "/include/lighting/cloudShadows.glsl"
@@ -47,6 +53,7 @@ uniform sampler2D lodDepthTex1;
 #include "/include/utility/sampling.glsl"
 #include "/include/utility/spaceConversion.glsl"
 #include "/include/utility/sphericalHarmonics.glsl"
+#include "/include/utility/textureSampling.glsl"
 
 //--// Functions //-----------------------------------------------------------//
 
@@ -59,7 +66,7 @@ float getMaxHorizonAngle (vec2 sliceDir, vec2 screenPos, vec3 viewPos, vec3 view
     float maxTheta = -1.0;
 
     for (int i = 0; i < GTAO_HORIZON_STEPS; i++, stepPos += stepDir) {
-        float sampleDepth = texelFetch(lodDepthTex1, ivec2(viewSize * stepPos), 0).r;
+        float sampleDepth = texelFetch(lodDepthTex1, ivec2(internalScreenSize * stepPos), 0).r;
 
         vec3 sampleVec = screenToViewPos(stepPos.xy, sampleDepth, true) - viewPos;
         float lengthSqu = dot(sampleVec, sampleVec);
@@ -172,7 +179,7 @@ void main() {
 	ivec2 texel     = ivec2(gl_FragCoord.xy);
     ivec2 viewTexel = ivec2(gl_FragCoord.xy * rcp(indirectRenderScale));
 
-	vec2 coord = gl_FragCoord.xy * viewTexelSize * rcp(indirectRenderScale);
+	vec2 coord = gl_FragCoord.xy * internalTexelSize * rcp(indirectRenderScale);
 
 	if (clamp01(coord) != coord) discard;
 
@@ -182,12 +189,9 @@ void main() {
 	uvec3 encoded = texelFetch(colortex1, viewTexel, 0).xyz;
 	vec2 dither   = vec2(texelFetch(noisetex, texel & 511, 0).b, texelFetch(noisetex, (texel + 249) & 511, 0).b);
 
-	if (depth == 0.0) { data = vec4(0.0); return; }
-	//if (depth < handDepth) depth += 0.38; // Hand lighting fix from Capt Tatsu
+    if (depth == 0.0) { irradianceHistory = vec4(0.0); temporalData = vec4(0.0, 1.0, 0.0, 0.0); return; }
 
 	/* -- unpack gbuffer  -- */
-
-	vec2 lmCoord = unpackUnorm4x8(encoded.y).zw;
 
 #ifdef NORMAL_MAP
 	vec4 normalData = unpackUnormArb(encoded.z, uvec4(12, 12, 7, 1));
@@ -196,6 +200,8 @@ void main() {
 	vec2 encodedNormal = unpackUnorm4x8(encoded.y).xy;
 #endif
 
+    vec2 lmCoord = unpackUnorm4x8(encoded.y).zw;
+
 	vec3 worldNormal = octDecode(encodedNormal);
 	vec3 viewNormal  = mat3(gbufferModelView) * worldNormal;
 
@@ -203,7 +209,21 @@ void main() {
 
 	vec3 screenPos = vec3(coord, depth);
 	vec3 viewPos = screenToViewPos(coord, depth, true);
-	vec3 scenePos = transform(gbufferModelViewInverse, viewPos);
+	
+    // Equivalent to vec2(dFdx(rcp(viewPos.z)), dFdy(rcp(viewPos.z)))
+    vec2 depthDiff = -2.0 * vec2(lodProjMatInv_0.x, lodProjMatInv_1.y) * internalTexelSize * viewNormal.xy / dot(viewPos, viewNormal);
+
+    float w = viewPos.z * dot(depthDiff, vec2(viewTexel) + 0.5 - gl_FragCoord.xy * rcp(indirectRenderScale));
+
+    viewPos += viewPos * w / (1.0 - w);
+
+    vec3 scenePos = transform(gbufferModelViewInverse, viewPos);
+
+    float exponent = ceil(log2(max(-viewPos.z, 1e-38)));
+
+    temporalData.x = -viewPos.z * exp2(-exponent) * 2.0 - 1.0;
+    temporalData.y = rcp(255.0) * (exponent + 126.0);
+    temporalData.zw = encodedNormal;
 
 	/* -- indirect lighting -- */
 
@@ -219,7 +239,7 @@ void main() {
 	vec3 shadowViewPos = transform(shadowModelView, scenePos);
 	vec3 sunlight = getBouncedSunlight(shadowViewPos, worldNormal, rng, lmCoord.y);
 
-	irradiance += ao.w * directIrradiance * sunlight;
+	irradiance += ao.w * getCloudShadows(colortex15, scenePos) * directIrradiance * sunlight;
 
 	// Blocklight
 
@@ -237,12 +257,57 @@ void main() {
 
 	irradiance += ao.w * ambientIrradiance;
 
-	/* -- pack irradiance and gbuffer data -- */
+    //--// Temporal accumulation
 
-	vec4 irradianceRgbe8 = encodeRgbe8(irradiance);
+    vec4 prevPos = lodProjMatPrev0 * gbufferPreviousModelView * vec4(scenePos + step(0.08, dot(scenePos, scenePos)) * cameraVelocity, 1.0);
+         prevPos.xy = (prevPos.xy / prevPos.w + taa_offset_prev) * 0.5 + 0.5;
 
-	data.x = packUnorm2x8(irradianceRgbe8.xy);
-	data.y = packUnorm2x8(irradianceRgbe8.zw);
-	data.z = clamp01(linearizeDepth(depth) * rcp(renderDistance));
-	data.w = packUnorm2x8(encodedNormal);
+    if (clamp01(prevPos.xy) == prevPos.xy) {
+        const float depthStrictness  = 10.0;
+        const float normalStrictness = 5.0;
+
+        vec2 coord = indirectRenderScale * internalScreenSize * min(prevPos.xy, 1.0 - rcp(indirectRenderScale) * internalTexelSize) - 0.5;
+
+        ivec2 sampleTexel = ivec2(coord);
+
+        vec4 prevData = vec4(0.0);
+        float prevDepth = 0.0;
+        float weights = 0.0;
+
+        coord = -fract(coord);
+
+        for (int i = 0; i < 4; i++) {
+            ivec2 offset = ivec2(i >> 1, i & 1);
+
+            vec4 sampleData = texelFetch(colortex13, sampleTexel + offset, 0);
+
+            float sampleDepth = (sampleData.x * 0.5 + 0.5) * exp2(floor(sampleData.y * 255.0 - 126.0));
+                  sampleDepth = rcp(rcp(sampleDepth) + rcp(indirectRenderScale) * dot(depthDiff, coord + vec2(offset)));
+            vec3 prevNormal = octDecode(sampleData.zw);
+
+            float sampleWeight  = depthStrictness * abs(prevPos.w - sampleDepth);
+                  sampleWeight += normalStrictness * (-dot(prevNormal, worldNormal) * 0.5 + 0.5);
+                  sampleWeight  = bilinearWeight(coord, vec2(offset)) * max(0.001, exp(-sampleWeight));
+
+            prevData  += sampleWeight * texelFetch(colortex10, sampleTexel + offset, 0);
+            prevDepth += sampleWeight * sampleDepth;
+            weights   += sampleWeight;
+        }
+
+        weights = rcp(max(0.001, weights));
+
+        prevData *= weights;
+        prevDepth *= weights;
+
+        if (any(isnan(prevData))) prevData = vec4(0.0, 0.0, 0.0, 1.0);
+
+        float alpha  = 1.0 - INDIRECT_TEMPORAL_BLEND_WEIGHT;
+              alpha *= step(0.0, prevPos.w);
+              alpha *= float(!worldAgeChanged);
+              alpha *= exp(-depthStrictness * abs(prevPos.w - prevDepth));
+
+        irradianceHistory = mix(vec4(irradiance, ao.w), prevData, alpha);
+    } else {
+        irradianceHistory = vec4(irradiance, ao.w);
+    }
 }

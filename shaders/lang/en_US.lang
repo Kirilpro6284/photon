@@ -57,16 +57,16 @@ option.MOON_PHASE_AFFECTS_BRIGHTNESS   = Moon Phase Affects Brightness
 
 # Clouds
 
-option.CLOUDS_UPSCALING_FACTOR         = Temporal Upscaling
+option.CLOUDS_TEMPORAL_UPSAMPLING         = Temporal Upsampling
 
-value.CLOUDS_UPSCALING_FACTOR.1        = OFF
-value.CLOUDS_UPSCALING_FACTOR.2        = 2x
-value.CLOUDS_UPSCALING_FACTOR.4        = 4x
-value.CLOUDS_UPSCALING_FACTOR.8        = 8x
-value.CLOUDS_UPSCALING_FACTOR.9        = 9x
-value.CLOUDS_UPSCALING_FACTOR.16       = 16x
+value.CLOUDS_TEMPORAL_UPSAMPLING.1        = OFF
+value.CLOUDS_TEMPORAL_UPSAMPLING.2        = 2x
+value.CLOUDS_TEMPORAL_UPSAMPLING.4        = 4x
+value.CLOUDS_TEMPORAL_UPSAMPLING.8        = 8x
+value.CLOUDS_TEMPORAL_UPSAMPLING.9        = 9x
+value.CLOUDS_TEMPORAL_UPSAMPLING.16       = 16x
 
-option.CLOUDS_SCALE                    = Clouds Scale
+option.CLOUDS_SCALE                    = Scale
 suffix.CLOUDS_SCALE                    = x
 
 # Layer 0

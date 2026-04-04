@@ -29,7 +29,6 @@ uniform sampler2D colortex5;  // Responsive AA flag
 uniform sampler2D colortex6;  // AABB min
 uniform sampler2D colortex7;  // AABB max
 uniform sampler2D colortex8;  // Scene history
-uniform sampler2D colortex14; // Temporally stable linear depth
 
 uniform sampler2D lodDepthTex1;
 
@@ -59,12 +58,12 @@ vec3 getClosestFragment(ivec2 texel, float depth) {
 	float depth3 = texelFetch(lodDepthTex1, texel3, 0).x;
 	float depth4 = texelFetch(lodDepthTex1, texel4, 0).x;
 
-	vec3 pos  = depth  < depth1 ? vec3(texel,  depth ) : vec3(texel1, depth1);
-	vec3 pos1 = depth2 < depth3 ? vec3(texel2, depth2) : vec3(texel3, depth3);
-	     pos  = pos.z  < pos1.z ? pos : pos1;
-	     pos  = pos.z  < depth4 ? pos : vec3(texel4, depth4);
+	vec3 pos  = depth  > depth1 ? vec3(texel,  depth ) : vec3(texel1, depth1);
+	vec3 pos1 = depth2 > depth3 ? vec3(texel2, depth2) : vec3(texel3, depth3);
+	     pos  = pos.z  > pos1.z ? pos : pos1;
+	     pos  = pos.z  > depth4 ? pos : vec3(texel4, depth4);
 
-	return vec3((pos.xy + 0.5) * viewTexelSize, pos.z);
+	return vec3((pos.xy + 0.5) * internalTexelSize, pos.z);
 }
 
 // AABB clipping from "Temporal Reprojection Anti-Aliasing in INSIDE"
@@ -139,13 +138,14 @@ void main() {
 #else
 	vec3 current = texelFetch(colortex3, srcTexel, 0).rgb;
 #endif
-	vec3 history = textureCatmullRom(colortex8, previousCoord).rgb;
+	vec4 history = textureCatmullRom(colortex8, previousCoord);
 
-	float pixelAge  = texture(colortex8, previousCoord).a;
+	float pixelAge  = (previousCoord.x < 5.5 * texelSize.x && previousCoord.y < 1.5 * texelSize.y) ? 8.0 : history.a;
 	      pixelAge *= float(clamp01(previousCoord) == previousCoord);
 		  pixelAge += 1.0;
+		  pixelAge  = clamp(pixelAge, 1.0, TAA_HISTORY_W_CLAMP);
 
-	if (any(isnan(history)) || pixelAge <= 2.0) history = current;
+	if (any(isnan(history)) || pixelAge <= 2.0) history.rgb = current;
 
 	// Interpolate AABB bounds across pixels
 	vec3 aabbMin = texture(colortex6, adjustedCoord).rgb;
@@ -160,22 +160,22 @@ void main() {
 
 	// Perform AABB clipping in YCoCg space, which results in a tighter AABB because luminance (Y)
 	// is separated from chrominance (CoCg) as its own axis
-	history = rgbToYcocg(history);
-	history = clipAabb(history, aabbMin, aabbMax, historyClipped);
+	history.rgb = rgbToYcocg(history.rgb);
+	history.rgb = clipAabb(history.rgb, aabbMin, aabbMax, historyClipped);
 
-	float flickerReduction = historyClipped ? 0.0 : distanceToClip(history, aabbMin, aabbMax);
+	float flickerReduction = historyClipped ? 0.0 : distanceToClip(history.rgb, aabbMin, aabbMax);
 
-	history = ycocgToRgb(history);
+	history.rgb = ycocgToRgb(history.rgb);
 #endif
 
 	// Offcenter rejection from Jessie, which is originally from Zombye
 	// Reduces blur in motion
-	vec2 pixelOffset = 1.0 - abs(2.0 * fract(windowSize * previousCoord) - 1.0);
+	vec2 pixelOffset = 1.0 - abs(2.0 * fract(screenSize * previousCoord) - 1.0);
 	float offcenterRejection = sqrt(pixelOffset.x * pixelOffset.y) * TAA_OFFCENTER_REJECTION + (1.0 - TAA_OFFCENTER_REJECTION);
 
 	// Dynamic blend weight lending equal weight to all frames in the history, drastically reduces
 	// time taken to converge when upscaling
-	float alpha = max(1.0 / pixelAge, TAA_BLEND_WEIGHT);
+	float alpha = 1.0 / pixelAge;
 
 #if TAA_UPSCALING_FACTOR > 1
 	alpha *= pow(confidence, TAA_CONFIDENCE_REJECTION * sqr(offcenterRejection));
@@ -191,14 +191,13 @@ void main() {
 	alpha *= offcenterRejection;
 	alpha  = 1.0 - alpha;
 
-	result.rgb = mix(history, current, alpha);
+	result.rgb = mix(history.rgb, current, alpha);
 	result.a   = pixelAge * offcenterRejection; // recover more quickly
 
 	// Calculate temporally stable linear depth
 
 	vec2 unpack = unpackHalf2x16((uint(depthTaaInfo.y * 65535.0 + 0.5) << 16u) | uint(depthTaaInfo.z * 65535.0 + 0.5));
 
-	temporalDepth = textureSmooth(colortex14, previousCoord, windowSize).x;
 	temporalDepth = clamp(temporalDepth, reverseLinearDepth(unpack.x), reverseLinearDepth(unpack.y));
 	temporalDepth = mix(temporalDepth, linearizeDepth(depth), alpha);
 #else
@@ -212,4 +211,5 @@ void main() {
 
 	// Store globalExposure in the alpha component of the bottom left texel of the history buffer
 	if (dstTexel == ivec2(0)) result.a = globalExposure;
+	else if (dstTexel.x <= 4 && dstTexel.y == 0) result.a = texelFetch(colortex8, dstTexel, 0).a;
 }

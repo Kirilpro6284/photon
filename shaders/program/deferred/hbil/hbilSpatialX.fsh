@@ -27,7 +27,7 @@ uniform sampler2D colortex10; // Indirect lighting history
 
 const float hbilRenderScale = 0.01 * INDIRECT_RENDER_SCALE;
 
-ivec2 viewportSize = ivec2(viewSize * hbilRenderScale);
+ivec2 viewportSize = ivec2(internalScreenSize * hbilRenderScale);
 
 float depthWeight(float z0, float z1, float NoV) {
 	const float depthStrictness = 10.0;
@@ -76,7 +76,7 @@ const ivec2[7] offsets = ivec2[7](
 );
 
 void main() {
-	vec2 coord = gl_FragCoord.xy * viewTexelSize * rcp(hbilRenderScale);
+	vec2 coord = gl_FragCoord.xy * internalTexelSize * rcp(hbilRenderScale);
 
 	ivec2 texel     = ivec2(gl_FragCoord.xy);
     ivec2 viewTexel = ivec2(gl_FragCoord.xy * rcp(hbilRenderScale));

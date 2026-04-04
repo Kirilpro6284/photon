@@ -127,7 +127,7 @@ void main() {
 
 #if   DEBUG_VIEW == DEBUG_VIEW_SAMPLER
 	if (clamp(texel, ivec2(0), ivec2(textureSize(DEBUG_SAMPLER, 0))) == texel) {
-		fragColor  = texelFetch(DEBUG_SAMPLER, texel, 0).rgb;
+		fragColor  = vec3(texelFetch(DEBUG_SAMPLER, texel, 0).DEBUG_SAMPLER_CHANNEL);
 		fragColor *= DEBUG_SAMPLER_EXPOSURE;
 		fragColor  = linearToSrgb(fragColor);
 	} else {
@@ -188,11 +188,14 @@ void main() {
     #ifdef ENABLE_TEXT_RENDERING
         #define FONT_SIZE 2 // [1 2 3 4 5 6 7 8]
         
-        beginText(ivec2(gl_FragCoord.xy / FONT_SIZE), ivec2(20, windowSize.y / FONT_SIZE - 20));
+        beginText(ivec2(gl_FragCoord.xy / FONT_SIZE), ivec2(20, screenSize.y / FONT_SIZE - 20));
         text.fgCol = vec4(vec3(1.0), 1.0);
         text.bgCol = vec4(vec3(0.0), 0.0);
 
-        printFloat(worldAge);
+        printFloat(timeSunrise); printLine();
+        printFloat(timeNoon); printLine();
+        printFloat(timeSunset); printLine();
+        printFloat(timeMidnight); printLine();
 
         endText(fragColor.rgb);
     #endif

@@ -65,7 +65,7 @@ vec3 getSpecularReflections(
 	float alphaSq = sqr(material.roughness);
 	float skylightFalloff = pow8(skylight);
 
-	float dither = R1(frameCounter, texelFetch(noisetex, ivec2(gl_FragCoord.xy) & 511, 0).b);
+	float dither = getInterleavedGradientNoise(gl_FragCoord.xy, frameCounter);
 
 #if defined SPECULAR_MAP && defined SSR_ROUGH
 	vec2 hash = R2(
@@ -76,7 +76,7 @@ vec3 getSpecularReflections(
 		)
 	);
 
-	if (material.roughness > 5e-2) { // Rough reflection
+	if (material.roughness > 0.005) { // Rough reflection
 	 	float mipLevel = sqrt(4.0 * dampen(material.roughness));
 
 		vec3 reflection = vec3(0.0);

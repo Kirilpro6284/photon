@@ -124,7 +124,7 @@ void main() {
 	float gradientScaled = 0.25 * max(abs(gradient1), abs(gradient2));
 
 	// Choose the step size (one pixel) according to the edge direction
-	float stepLength = isHorizontal ? windowTexelSize.y : windowTexelSize.x;
+	float stepLength = isHorizontal ? texelSize.y : texelSize.x;
 
 	// Average luma in the correct direction
 	float lumaLocalAverage;
@@ -147,7 +147,7 @@ void main() {
 	//--// First iteration exploration
 
 	// Compute offste (for each iteration step) in the right direction
-	vec2 offset = isHorizontal ? vec2(windowTexelSize.x, 0.0) : vec2(0.0, windowTexelSize.y);
+	vec2 offset = isHorizontal ? vec2(texelSize.x, 0.0) : vec2(0.0, texelSize.y);
 
 	// Compute UVs to explore on each side of the edge, orthogonally. "quality" allows us to step faster
 	vec2 uv1 = currentUv - offset;

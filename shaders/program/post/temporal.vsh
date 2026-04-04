@@ -72,7 +72,7 @@ void buildHistogram(out float[HISTOGRAM_BINS] pdf) {
 	const ivec2 tiles = ivec2(32, 18);
 	const vec2 tileSize = rcp(vec2(tiles));
 
-	float lod = ceil(log2(maxOf(viewSize * tileSize)));
+	float lod = ceil(log2(maxOf(internalScreenSize * tileSize)));
 
 	// Sample into histogram
 	for (int y = 0; y < tiles.y; ++y) {

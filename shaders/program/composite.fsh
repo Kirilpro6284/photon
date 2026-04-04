@@ -53,26 +53,13 @@ void main() {
 	/* -- texture fetches -- */
 
 	float backDepth   = texelFetch(lodDepthTex1,  texel, 0).x;
-	float frontDepth  = max(backDepth, texelFetch(lodDepthTex0,  texel, 0).x);
+	float frontDepth  = texelFetch(lodDepthTex0,  texel, 0).x;
 	radiance          = texelFetch(colortex3,  texel, 0).rgb;
 	vec3 clearSky     = texelFetch(colortex7,  texel, 0).rgb;
 	vec4 clouds       = texelFetch(colortex2, texel, 0);
 
-#ifdef VOXY
-	vec4 translucents;
-	vec4 waterMask;
-
-	if (texelFetch(depthtex0, texel, 0).r == 1.0) {
-		translucents = texelFetch(colortex16,  texel, 0);
-	 	waterMask    = texelFetch(colortex17,  texel, 0);
-	} else {
-	 	translucents = texelFetch(colortex0,  texel, 0);
-	 	waterMask    = texelFetch(colortex9,  texel, 0);
-	}
-#else
 	vec4 translucents = texelFetch(colortex0,  texel, 0);
 	vec4 waterMask    = texelFetch(colortex9,  texel, 0);
-#endif
 
 	/* -- fetch lighting palette -- */
 
@@ -92,7 +79,7 @@ void main() {
 	/* -- underwater effects -- */
 
 	if (waterMask.a > 0.5) {
-		vec2 normalTangentXy       = unpackUnorm2x8(waterMask.x) * 2.0 - 1.0;
+		vec2 normalTangentXy       = unpackUnorm2x8(waterMask.x) * 0.25 - 0.125;
 		vec2 lightingInfo          = unpackUnorm2x8(waterMask.y);
 		float distanceToWater      = waterMask.z * renderDistance;
 
@@ -105,6 +92,8 @@ void main() {
 		radiance         = texture(colortex3, refractedCoord).rgb;
 		backDepth        = texture(lodDepthTex1, refractedCoord * renderScale).x;
 		vec3 backPosView = screenToViewPos(refractedCoord, backDepth, true);
+#else
+		vec3 backPosView = screenToViewPos(coord, backDepth, true);
 #endif
 
 		// water volume
@@ -129,24 +118,28 @@ void main() {
 		radiance = radiance * waterVolume[1] + waterVolume[0];
 	}
 
-	/* -- blend layers -- */
+	/* -- blend translucents and clouds -- */
 
-	radiance = radiance * (1.0 - translucents.a) + translucents.rgb;
-
-	/* -- blend with clouds -- */
-
-	if (backDepth > 0.0 && clouds.w < viewerDistance * CLOUDS_SCALE) {
+	if (backDepth > 0.0) {
 		const float cloudsLightningFlash = 10.0;
 
-		vec3 rayOrigin = vec3(0.0, planetRadius + 400.0, 0.0);
+		vec3 rayOrigin = vec3(0.0, planetRadius + 1500.0, 0.0);
 		vec3 rayDir = cloudsMoonlit ? moonDir : sunDir;
 
 		vec3 cloudsDirectIrradiance  = cloudsMoonlit ? moonIrradiance * moonPhaseBrightness : sunIrradiance;
-			 cloudsDirectIrradiance *= getAtmosphereTransmittance(rayOrigin, rayDir) * smoothstep(0.0, 0.02, abs(sunDir.y + 0.02));
+			 cloudsDirectIrradiance *= getAtmosphereTransmittance(rayOrigin, rayDir) * smoothstep(0.0, 0.01, abs(sunDir.y + 0.02));
 			 cloudsDirectIrradiance *= 1.0 - pulse(float(worldTime), 12850.0, 50.0) - pulse(float(worldTime), 23150.0, 50.0);
 
 		vec3 cloudsScattering = mat2x3(cloudsDirectIrradiance, skyIrradiance + cloudsLightningFlash * lightningFlash) * clouds.xy;
 
-		radiance = radiance * clouds.z + cloudsScattering;
+		if (backDepth == frontDepth || clouds.w < viewerDistance * rcp(CLOUDS_SCALE)) {
+			radiance = radiance * (1.0 - translucents.a) + translucents.rgb;
+			radiance = radiance * clouds.z + cloudsScattering;
+		} else {
+			radiance = radiance * clouds.z + cloudsScattering;
+			radiance = radiance * (1.0 - translucents.a) + translucents.rgb;
+		}
+	} else {
+		radiance = radiance * (1.0 - translucents.a) + translucents.rgb;
 	}
 }

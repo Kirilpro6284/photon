@@ -36,7 +36,7 @@ layout (location = 1) out vec4 fragDepth;
 
 void voxy_emitFragment (VoxyFragmentParameters parameters) {
 #if TAA_UPSCALING_FACTOR > 1
-	vec2 coord = gl_FragCoord.xy * viewTexelSize;
+	vec2 coord = gl_FragCoord.xy * internalTexelSize;
 	if (clamp01(coord) != coord) discard;
 #endif
 

@@ -21,7 +21,7 @@ flat in vec3 tint;
 
 void main() {
 #if TAA_UPSCALING_FACTOR > 1
-	vec2 coord = gl_FragCoord.xy * viewTexelSize;
+	vec2 coord = gl_FragCoord.xy * internalTexelSize;
 	if (clamp01(coord) != coord) discard;
 #endif
 
@@ -85,8 +85,8 @@ void main() {
 	vec3 ndc1 = linePosStart.xyz / linePosStart.w;
 	vec3 ndc2 = linePosEnd.xyz / linePosEnd.w;
 
-	vec2 lineScreenDir = normalize((ndc2.xy - ndc1.xy) * viewSize);
-	vec2 lineOffset = vec2(-lineScreenDir.y, lineScreenDir.x) * lineWidth * viewTexelSize;
+	vec2 lineScreenDir = normalize((ndc2.xy - ndc1.xy) * internalScreenSize);
+	vec2 lineOffset = vec2(-lineScreenDir.y, lineScreenDir.x) * lineWidth * internalTexelSize;
 
 	if (lineOffset.x < 0.0) lineOffset *= -1.0;
 

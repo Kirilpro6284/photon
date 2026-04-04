@@ -41,7 +41,7 @@ vec3 getScreenSpaceShadows (vec3 viewPos, float dither, out float distantSss) {
 		rayPos,
 		rayEnd - rayPos,
 		dither,
-		8u,
+		16u,
 		2u,
 		0.25
 	);
@@ -148,10 +148,17 @@ vec3 getSceneLighting(
 		float LoH = LoV * halfwayNorm + halfwayNorm;
 
 		vec3 diffuse = diffuseHammon(material, NoL, NoV, NoH, LoV) * (1.0 - 0.75 * material.sssAmount);
-		vec3 specular = getSpecularHighlight(material, NoL, NoV, NoH, LoV, LoH);
-		vec3 subsurface = getSubsurfaceScattering(material.albedo, material.sssAmount, sssDepth, LoV);
 
-		radiance += directIrradiance * ((diffuse + specular) * visibility + subsurface) * cloudShadow;
+		#ifdef PROGRAM_GBUFFERS_WATER
+			vec3 subsurface = getSubsurfaceScattering(material.albedo, material.sssAmount, sssDepth, LoV);
+
+			radiance += directIrradiance * (diffuse * visibility + subsurface) * cloudShadow;
+		#else
+			vec3 specular = getSpecularHighlight(material, NoL, NoV, NoH, LoV, LoH);
+			vec3 subsurface = getSubsurfaceScattering(material.albedo, material.sssAmount, sssDepth, LoV);
+
+			radiance += directIrradiance * ((diffuse + specular) * visibility + subsurface) * cloudShadow;
+		#endif
 	}
 #endif
 

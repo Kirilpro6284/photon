@@ -27,9 +27,9 @@ uniform usampler2D colortex1; // Scene data
 uniform sampler2D colortex2; // clouds history
 uniform sampler2D colortex3;  // Scene radiance
 uniform sampler2D skyCapture;  // Sky capture
-uniform sampler2D colortex5;  // Indirect lighting
 uniform sampler2D colortex7;  // Clear sky
 uniform sampler2D colortex8;  // Scene history
+uniform sampler2D colortex10;  // Indirect lighting
 uniform sampler2D colortex15; // Cloud shadow map
 
 uniform sampler2D lodDepthTex1;
@@ -95,27 +95,6 @@ vec4 weighHbilSample(vec4 data, vec3 normal, float z0, float NoV, float weight) 
 	}
 }
 
-vec3 upsampleHbil(vec3 normal, float linZ, float NoV) {
-	vec4 result = vec4(0.0);
-
-	vec2 pos = gl_FragCoord.xy * hbilRenderScale - 0.5;
-
-	ivec2 i = ivec2(pos);
-	vec2  f = fract(pos);
-
-	vec4 s0 = texelFetch(colortex5, i + ivec2(0, 0), 0);
-	vec4 s1 = texelFetch(colortex5, i + ivec2(1, 0), 0);
-	vec4 s2 = texelFetch(colortex5, i + ivec2(0, 1), 0);
-	vec4 s3 = texelFetch(colortex5, i + ivec2(1, 1), 0);
-
-	result += weighHbilSample(s0, normal, linZ, NoV, (1.0 - f.x) * (1.0 - f.y)); // bottom left
-	result += weighHbilSample(s1, normal, linZ, NoV, f.x - f.x * f.y);           // bottom right
-	result += weighHbilSample(s2, normal, linZ, NoV, f.y - f.x * f.y);           // top left
-	result += weighHbilSample(s3, normal, linZ, NoV, f.x * f.y);                 // top right
-
-	return (result.w == 0.0) ? skyIrradiance * pow4(eyeSkylight) : result.xyz / result.w;
-}
-
 void main() {
 	ivec2 texel = ivec2(gl_FragCoord.xy);
 
@@ -168,7 +147,7 @@ void main() {
 #ifdef INDIRECT_LIGHTING
 	float linZ = linearizeDepth(depth);
 	float NoV = abs(dot(normal, viewerDir));
-	vec3 indirectIrradiance = upsampleHbil(normal, linZ, NoV);
+	vec3 indirectIrradiance = texture(colortex10, coord * hbilRenderScale).rgb;
 #endif
 
 	/* -- get material -- */

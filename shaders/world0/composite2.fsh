@@ -1,74 +1,275 @@
 #version 430 compatibility
 
 /*
- * Program description
- * Apply volumetric fog
+ * Program description:
+ * Render volumetric fog
  */
 
 #include "/include/main.glsl"
-#include "/include/utility/textureSampling.glsl"
-#include "/include/utility/spaceConversion.glsl"
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 3 */
-layout (location = 0) out vec3 radiance;
+/* RENDERTARGETS: 7,6 */
+layout (location = 0) out vec4 fogScattering;
+layout (location = 1) out vec4 fogTransmittance;
 
 //--// Inputs //--------------------------------------------------------------//
 
 in vec2 coord;
 
+flat in vec3 directIrradiance;
+flat in vec3 skyIrradiance;
+
 //--// Uniforms //------------------------------------------------------------//
 
-uniform sampler2D colortex2; // Clouds;
-uniform sampler2D colortex3; // Scene radiance
-uniform sampler2D colortex6; // Fog transmittance
-uniform sampler2D colortex7; // Fog scattering
+uniform sampler2D noisetex;
 
+uniform sampler2D colortex15; // Cloud shadow map
+
+uniform sampler2D lodDepthTex0;
 uniform sampler2D lodDepthTex1;
+
+uniform sampler3D colortex10; // 3D worley noise
+
+#ifdef SHADOW
+uniform sampler2D shadowtex1;
+#endif
+
+//--// Includes //------------------------------------------------------------//
+
+#include "/include/atmospherics/atmosphere.glsl"
+#include "/include/atmospherics/phaseFunctions.glsl"
+
+#include "/include/fragment/waterVolume.glsl"
+
+#include "/include/lighting/cloudShadows.glsl"
+#include "/include/lighting/shadowDistortion.glsl"
+
+#include "/include/utility/random.glsl"
+#include "/include/utility/spaceConversion.glsl"
+
+//--// Constants //-----------------------------------------------------------//
+
+const float fogRenderScale     = 0.01 * FOG_RENDER_SCALE;
+const uint fogMinStepCount     = 8;
+const uint fogMaxStepCount     = 25;
+const float fogStepCountGrowth = 0.1;
+const float fogScale           = 100.0 * AIR_FOG_DENSITY;
+const vec2 fogFalloffStart     = vec2(30.0, 5.0);
+const vec2 fogFalloffHalfLife  = vec2(25.0, 8.0); // How many meters it takes for the fog density to halve (rayleigh, mie)
+const float fogLightningFlash  = 5.0;
+
+// desert sandstorm
+const float desertSandstormScatter = 0.5;
+const vec3 desertSandstormExtinct  = vec3(0.2, 0.3, 0.8);
+const vec2 desertSandstormDensity = vec2(0.005, 0.23); // rayleigh, mie
 
 //--// Functions //-----------------------------------------------------------//
 
-const float fogRenderScale = 0.01 * FOG_RENDER_SCALE;
+vec2 getFogDensity(vec3 worldPos) {
+	const vec2 mul = -rcp(fogFalloffHalfLife);
+	const vec2 add = -(SEA_LEVEL + fogFalloffStart) * mul;
+
+	vec2 density    = exp2(min(worldPos.y * mul + add, 0.0));
+	     density.y *= sqr(1.0 - texture(colortex10, 0.015 * worldPos).x);
+		 density.y *= 1.5 - texture(colortex10, 0.004 * worldPos).x;
+
+	return density;
+}
+
+mat2x3 raymarchFog(vec3 worldStartPos, vec3 worldEndPos, bool isSky, float dither) {
+	//--// Raymarching setup
+
+	vec3 worldDir = worldEndPos - worldStartPos;
+	float rayLength = length(worldDir);
+	worldDir *= rcp(rayLength);
+
+	vec3 shadowStartPos = mat3(shadowModelView) * (worldStartPos - cameraPosition) + shadowModelView[3].xyz;
+	     shadowStartPos = shadowProjScale * shadowStartPos;
+
+	vec3 shadowDir = mat3(shadowModelView) * worldDir;
+	     shadowDir = shadowProjScale * shadowDir;
+
+	const float lowerPlaneAltitude = -64.0;
+	const float upperPlaneAltitude = 256.0;
+
+	float distanceToLowerPlane = (lowerPlaneAltitude - eyeAltitude) / worldDir.y;
+	float distanceToUpperPlane = (upperPlaneAltitude - eyeAltitude) / worldDir.y;
+	float distanceToVolumeStart, distanceToVolumeEnd;
+
+	if (eyeAltitude < lowerPlaneAltitude) {
+		// Below volume
+		distanceToVolumeStart = distanceToLowerPlane;
+		distanceToVolumeEnd = worldDir.y < 0.0 ? -1.0 : distanceToUpperPlane;
+	} else if (eyeAltitude < upperPlaneAltitude) {
+		// Inside volume
+		distanceToVolumeStart = 0.0;
+		distanceToVolumeEnd = worldDir.y < 0.0 ? distanceToLowerPlane : distanceToUpperPlane;
+	} else {
+		// Above volume
+		distanceToVolumeStart = distanceToUpperPlane;
+		distanceToVolumeEnd = worldDir.y < 0.0 ? distanceToLowerPlane : -1.0;
+	}
+
+	if (distanceToVolumeEnd < 0.0) return mat2x3(vec3(0.0), vec3(1.0)); // Did not intersect volume
+
+	rayLength = isSky ? distanceToVolumeEnd : min(rayLength, distanceToVolumeEnd);
+	rayLength = clamp(rayLength - distanceToVolumeStart, 0.0, min(renderDistance, 2048.0));
+
+	uint stepCount = uint(float(fogMinStepCount) + fogStepCountGrowth * rayLength);
+	     stepCount = clamp(stepCount, fogMinStepCount, fogMaxStepCount);
+
+	float stepLength = rayLength * rcp(float(stepCount));
+
+	vec3 worldStep = worldDir * stepLength;
+	vec3 shadowStep = shadowDir * stepLength;
+
+	vec3 worldPos = worldStartPos + worldDir * (distanceToVolumeStart + stepLength * dither);
+	vec3 shadowPos = shadowStartPos + shadowDir * (distanceToVolumeStart + stepLength * dither);
+
+	//--// Constants
+
+	vec2 densityAtSeaLevel;
+	densityAtSeaLevel.x = 0.3 * timeSunrise + 0.3 * timeNoon + 0.3 * timeSunset + 0.4 * timeMidnight;
+	densityAtSeaLevel.y = 80.0 * timeSunrise + 0.5 * timeNoon + 50.0 * timeSunset + 40.0 * timeMidnight;
+
+	mat2x3 scatteringCoeff = mat2x3(
+		(airScatteringCoefficients[0] * fogScale) * densityAtSeaLevel.x,
+		(airScatteringCoefficients[1] * fogScale) * densityAtSeaLevel.y
+	);
+
+	mat2x3 extinctionCoeff = mat2x3(
+		(airExtinctionCoefficients[0] * fogScale) * densityAtSeaLevel.x,
+		(airExtinctionCoefficients[1] * fogScale) * densityAtSeaLevel.y
+	);
+
+#ifdef DESERT_SANDSTORM
+	scatteringCoeff[0] += desertSandstorm * desertSandstormDensity.x * desertSandstormScatter;
+	extinctionCoeff[0] += desertSandstorm * desertSandstormDensity.x * desertSandstormExtinct;
+	scatteringCoeff[1] += desertSandstorm * desertSandstormDensity.y * desertSandstormScatter;
+	extinctionCoeff[1] += desertSandstorm * desertSandstormDensity.y * desertSandstormExtinct;
+#endif
+
+	//--// Raymarching loop
+
+	vec3 transmittance = vec3(1.0);
+
+	mat2x3 ambientScattering = mat2x3(0.0);
+	mat2x3 directScattering  = mat2x3(0.0);
+
+	for (int i = 0; i < stepCount; ++i, worldPos += worldStep, shadowPos += shadowStep) {
+		vec3 shadowScreenPos = vec3(distortShadowPos(shadowPos.xy), shadowPos.z) * 0.5 + 0.5;
+
+#ifdef SHADOW
+		float shadowDepth = texelFetch(shadowtex1, ivec2(shadowScreenPos.xy * shadowMapResolution), 0).x;
+		float shadow = step(float(clamp01(shadowScreenPos) == shadowScreenPos) * shadowScreenPos.z, shadowDepth);
+#else
+		float shadow = 1.0;
+#endif
+
+#ifdef CLOUD_SHADOWS
+		shadow *= getCloudShadows(colortex15, worldPos - cameraPosition);
+#endif
+
+		vec2 density = getFogDensity(worldPos) * stepLength;
+
+		vec3 stepOpticalDepth = extinctionCoeff * density;
+		vec3 stepTransmittance = exp(-stepOpticalDepth);
+		vec3 stepTransmittedFraction = (1.0 - stepTransmittance) / max(stepOpticalDepth, eps);
+
+		vec3 visibleScattering = stepTransmittedFraction * transmittance;
+
+		directScattering[0]  += density.x * visibleScattering * shadow;
+		directScattering[1]  += density.y * visibleScattering * shadow;
+		ambientScattering[0] += density.x * visibleScattering;
+		ambientScattering[1] += density.y * visibleScattering;
+
+		transmittance *= stepTransmittance;
+	}
+
+	directScattering[0]  *= scatteringCoeff[0];
+	directScattering[1]  *= scatteringCoeff[1];
+	ambientScattering[0] *= scatteringCoeff[0] * eyeSkylight;
+	ambientScattering[1] *= scatteringCoeff[1] * eyeSkylight;
+
+	float LoV = dot(worldDir, shadowDir);
+
+	vec2 phase;
+	phase.x = rayleighPhase(LoV).x;
+	phase.y = 0.7 * henyeyGreensteinPhase(LoV, 0.4) + 0.3 * henyeyGreensteinPhase(LoV, -0.2);
+
+	/*
+	// Single scattering
+	vec3 scattering  = directIrradiance * (directScattering * phase);
+	     scattering += skyIrradiance * (ambientScattering * vec2(isotropicPhase));
+	/*/
+	// Multiple scattering
+	vec3 scattering = vec3(0.0);
+	float scatteringStrength = 1.0;
+
+	for (int i = 0; i < 4; ++i) {
+		scattering += scatteringStrength * directIrradiance * (directScattering * phase);
+		scattering += scatteringStrength * skyIrradiance * (ambientScattering * vec2(isotropicPhase));
+
+		scatteringStrength *= 0.5;
+		phase = mix(phase, vec2(isotropicPhase), 0.3);
+	}
+	//*/
+
+	return mat2x3(scattering, transmittance);
+}
 
 void main() {
-	ivec2 texel = ivec2(gl_FragCoord.xy);
+	ivec2 fogTexel = ivec2(gl_FragCoord.xy);
+	ivec2 viewTexel = ivec2(gl_FragCoord.xy * rcp(fogRenderScale));
 
-	float currDepth = linearizeDepth(texelFetch(lodDepthTex1, texel, 0).r);
+	if (clamp(viewTexel, ivec2(0), ivec2(internalScreenSize)) != viewTexel) discard;
 
-	vec2 coord = fogRenderScale * gl_FragCoord.xy - 0.5;
+	float depth = texelFetch(lodDepthTex1, viewTexel, 0).x;
 
-    ivec2 sampleTexel = ivec2(coord);
+	vec3 viewPos  = screenToViewPos(coord * rcp(fogRenderScale), depth, true);
+	vec3 scenePos = viewToSceneSpace(viewPos);
+	vec3 worldPos = scenePos + cameraPosition;
 
-	vec3 fogScattering = vec3(0.0);
-	vec3 fogTransmittance = vec3(0.0);
-	float weights = 0.0;
+	float dither = texelFetch(noisetex, fogTexel & 511, 0).b;
+	      dither = R1(frameCounter, dither);
 
-    vec2 fractCoord = -fract(coord);
+	mat2x3 fogData;
 
-	for (int i = 0; i < 4; i++) {
-		ivec2 offset = ivec2(i >> 1, i & 1);
+	switch (isEyeInWater) {
+		case 0:
+#ifdef AIR_FOG_VL
+			vec3 rayOrigin = gbufferModelViewInverse[3].xyz + cameraPosition;
+			vec3 rayEnd = worldPos;
+			fogData = raymarchFog(rayOrigin, rayEnd, depth == 1.0, dither);
+#else
+#endif
+			break;
 
-		float sampleDepth = linearizeDepth(texelFetch(lodDepthTex1, ivec2((sampleTexel + offset + 0.5) * rcp(fogRenderScale)), 0).r);
-		float sampleWeight = bilinearWeight(fractCoord, vec2(offset)) * max(0.001, exp(-4.0 * abs(sampleDepth - currDepth)));
+	case 1:
+#ifdef UNDERWATER_VL
+#else
+		vec3 rayDir = normalize(scenePos - gbufferModelViewInverse[3].xyz);
+		float viewerDistance = length(viewPos);
 
-		fogScattering    += sampleWeight * texelFetch(colortex7, sampleTexel + offset, 0).rgb;
-		fogTransmittance += sampleWeight * texelFetch(colortex6, sampleTexel + offset, 0).rgb;
-		weights += sampleWeight;
+		fogData = getSimpleWaterVolume(
+			directIrradiance,
+			skyIrradiance,
+			vec3(0.0),
+			viewerDistance,
+			dot(shadowDir, -rayDir),
+			15.0 - 15.0 * eyeSkylight,
+			eyeSkylight,
+			1.0
+		);
+#endif
+		break;
+
+		default:
+			fogData = mat2x3(vec3(0.0), vec3(1.0));
+			break;
 	}
 
-	weights = rcp(max(0.001, weights));
-
-	fogScattering *= weights;
-	fogTransmittance *= weights;
-
-	if (eyeAltitude > SEA_LEVEL + 0.95 * CLOUDS_LAYER0_ALTITUDE / CLOUDS_SCALE) {
-		float cloudTransmittance = texelFetch(colortex2, texel, 0).z;
-
-		fogScattering *= cloudTransmittance;
-		fogTransmittance = mix(vec3(1.0), fogTransmittance, cloudTransmittance);
-	}
-
-	radiance = texelFetch(colortex3, texel, 0).rgb;
-	radiance = radiance * fogTransmittance + fogScattering;
+	fogScattering = vec4(fogData[0] * (1.0 - blindness), 1.0);
+	fogTransmittance = vec4(fogData[1], 1.0);
 }

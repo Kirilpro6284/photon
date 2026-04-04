@@ -58,7 +58,7 @@ const float lodBias = log2(renderScale);
 
 void main() {
 #if TAA_UPSCALING_FACTOR > 1
-	vec2 coord = gl_FragCoord.xy * viewTexelSize;
+	vec2 coord = gl_FragCoord.xy * internalTexelSize;
 	if (clamp01(coord) != coord) discard;
 #endif
 
@@ -172,7 +172,7 @@ void main() {
 
 	vec3 viewPos = transform(gl_ModelViewMatrix, gl_Vertex.xyz);
 
-#ifdef PROGRAM_GBUFFERS_TERRAIN
+#ifdef STAGE_TERRAIN
 	bool isTopVertex = texCoord.y < mc_midTexCoord.y;
 
 	vec3 scenePos  = viewToSceneSpace(viewPos);
@@ -181,9 +181,13 @@ void main() {
 	viewPos = sceneToViewSpace(scenePos);
 #endif
 
-	reversedDepth = (lodProjMat_2.z * viewPos.z + lodProjMat_3.z) / (lodProjMat_2.w * viewPos.z);
-
 	vec4 clipPos = project(gl_ProjectionMatrix, viewPos);
+
+#ifdef STAGE_HAND
+    viewPos = projectAndDivide(gbufferProjectionInverse, clipPos.xyz / clipPos.w);
+#endif
+
+	reversedDepth = (lodProjMat_2.z * viewPos.z + lodProjMat_3.z) / (lodProjMat_2.w * viewPos.z);
 
 #ifdef TAA
     clipPos.xy += taa_offset * clipPos.w;

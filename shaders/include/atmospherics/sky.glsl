@@ -116,7 +116,7 @@ vec3 drawStars(vec3 rayDir) {
 //----------------------------------------------------------------------------//
 
 vec3 cloudsAerialPerspective(vec3 cloudsScattering, vec3 cloudData, vec3 rayDir, vec3 clearSky, float apparentDistance) {
-	vec3 rayOrigin = vec3(0.0, planetRadius + CLOUDS_SCALE * (eyeAltitude - SEA_LEVEL), 0.0);
+	vec3 rayOrigin = vec3(0.0, planetRadius + rcp(CLOUDS_SCALE) * (eyeAltitude - SEA_LEVEL), 0.0);
 	vec3 rayEnd    = rayOrigin + apparentDistance * rayDir;
 
 	vec3 transmittance;

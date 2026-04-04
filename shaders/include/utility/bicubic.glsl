@@ -15,7 +15,7 @@ vec4 bicubicWeights(float v) {
 
 vec4 textureBicubicLod(sampler2D sampler, vec2 coord, int lod){
 	vec2 res = textureSize(sampler, lod);
-	vec2 texelSize = 1.0 / res;
+	vec2 invRes = 1.0 / res;
 
 	coord = coord * res - 0.5;
 
@@ -30,7 +30,7 @@ vec4 textureBicubicLod(sampler2D sampler, vec2 coord, int lod){
 	vec4 s = vec4(xWeights.xz + xWeights.yw, yWeights.xz + yWeights.yw);
 	vec4 offset = c + vec4(xWeights.yw, yWeights.yw) / s;
 
-	offset *= texelSize.xxyy;
+	offset *= invRes.xxyy;
 
 	vec4 sample0 = textureLod(sampler, offset.xz, lod);
 	vec4 sample1 = textureLod(sampler, offset.yz, lod);
@@ -50,7 +50,7 @@ vec4 textureBicubic(sampler2D sampler, vec2 coord){
 // Source: https://gist.github.com/TheRealMJP/c83b8c0f46b63f3a88a5986f4fa982b1 (MIT license)
 vec4 textureCatmullRom(sampler2D sampler, vec2 coord, out float confidence) {
 	vec2 res = textureSize(sampler, 0);
-	vec2 texelSize = 1.0 / res;
+	vec2 invRes = 1.0 / res;
 
 	// We're going to sample a a 4x4 grid of texels surrounding the target UV coordinate. We'll do this by rounding
 	// down the sample location to get the exact center of our "starting" texel. The starting texel will be at
@@ -80,9 +80,9 @@ vec4 textureCatmullRom(sampler2D sampler, vec2 coord, out float confidence) {
 	vec2 texPos3 = texPos1 + 2.0;
 	vec2 texPos12 = texPos1 + offset12;
 
-	texPos0 *= texelSize;
-	texPos3 *= texelSize;
-	texPos12 *= texelSize;
+	texPos0 *= invRes;
+	texPos3 *= invRes;
+	texPos12 *= invRes;
 
 	vec4 result = vec4(0.0);
 	result += texture(sampler, vec2(texPos0.x, texPos0.y), 0.0) * w0.x * w0.y;
@@ -111,7 +111,7 @@ vec4 textureCatmullRom(sampler2D sampler, vec2 coord) {
 // Ignores the corner texels, reducing the overhead from 9 to 5 bilinear samples
 vec3 textureCatmullRomFast(sampler2D sampler, vec2 coord, const float sharpness) {
 	vec2 res = vec2(textureSize(sampler, 0));
-	vec2 texelSize = 1.0 / res;
+	vec2 invRes = 1.0 / res;
 
 	vec2 position = res * coord;
 	vec2 centerPosition = floor(position - 0.5) + 0.5;
@@ -125,11 +125,11 @@ vec3 textureCatmullRomFast(sampler2D sampler, vec2 coord, const float sharpness)
 	vec2 w3 =         sharpness  * f3 -                sharpness * f2;
 
 	vec2 w12 = w1 + w2;
-	vec2 tc12 = texelSize * (centerPosition + w2 / w12);
+	vec2 tc12 = invRes * (centerPosition + w2 / w12);
 	vec3 centerColor = texture(sampler, vec2(tc12.x, tc12.y)).rgb;
 
-	vec2 tc0 = texelSize * (centerPosition - 1.0);
-	vec2 tc3 = texelSize * (centerPosition + 2.0);
+	vec2 tc0 = invRes * (centerPosition - 1.0);
+	vec2 tc3 = invRes * (centerPosition + 2.0);
 
 	vec4 color = vec4(texture(sampler, vec2(tc12.x, tc0.y )).rgb, 1.0) * (w12.x * w0.y )
 	           + vec4(texture(sampler, vec2(tc0.x,  tc12.y)).rgb, 1.0) * (w0.x  * w12.y)

@@ -33,7 +33,7 @@ uniform sampler2D colortex14; // Temporally stable linear depth
 
 const float hbilRenderScale = 0.01 * INDIRECT_RENDER_SCALE;
 
-ivec2 viewportSize = ivec2(viewSize * hbilRenderScale);
+ivec2 viewportSize = ivec2(internalScreenSize * hbilRenderScale);
 
 float depthWeight(float z0, float z1, float NoV) {
 	const float depthStrictness = 20.0;
@@ -87,7 +87,7 @@ void processSample(inout vec3 irradiance, inout float weightSum, vec4 data, ivec
 }
 
 void main() {
-	vec2 coord = gl_FragCoord.xy * viewTexelSize * rcp(hbilRenderScale);
+	vec2 coord = gl_FragCoord.xy * internalTexelSize * rcp(hbilRenderScale);
 
 	ivec2 texel     = ivec2(gl_FragCoord.xy);
     ivec2 viewTexel = ivec2(gl_FragCoord.xy * rcp(hbilRenderScale));
@@ -107,7 +107,7 @@ void main() {
 	vec3 geoNormal  = mat3(gbufferModelView) * octDecode(encodedNormal);
 
     // Equivalent to vec2(dFdx(rcp(viewPos.z)), dFdy(rcp(viewPos.z)))
-    vec2 depthDiff = -2.0 * vec2(lodProjMatInv_0.x, lodProjMatInv_1.y) * viewTexelSize * geoNormal.xy / dot(viewPos, geoNormal);
+    vec2 depthDiff = -2.0 * vec2(lodProjMatInv_0.x, lodProjMatInv_1.y) * internalTexelSize * geoNormal.xy / dot(viewPos, geoNormal);
 
 	//--// Spatial reconstruction
 

@@ -39,6 +39,7 @@ uniform float frameTime;
 uniform float frameTimeCounter;
 
 uniform float rainStrength;
+uniform float shadowAngle;
 uniform float sunAngle;
 uniform float wetness;
 
@@ -79,10 +80,10 @@ uniform vec3 viewShadowDir;
 uniform vec2 taa_offset;
 uniform vec2 taa_offset_prev;
 
-uniform vec2 viewSize;
-uniform vec2 windowSize;
-uniform vec2 viewTexelSize;
-uniform vec2 windowTexelSize;
+uniform vec2 internalScreenSize;
+uniform vec2 screenSize;
+uniform vec2 internalTexelSize;
+uniform vec2 texelSize;
 
 uniform vec4 lodProjMat_0;
 uniform vec4 lodProjMat_1;

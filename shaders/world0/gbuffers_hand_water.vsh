@@ -1,5 +1,5 @@
 #version 430 compatibility
-#define PROGRAM_GBUFFERS_HAND_WATER
+#define STAGE_HAND
 #define WORLD_OVERWORLD
 #define vsh
 #include "/program/gbuffer/translucent.glsl"

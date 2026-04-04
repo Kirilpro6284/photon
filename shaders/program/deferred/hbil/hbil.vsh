@@ -25,7 +25,6 @@ uniform sampler2D skyCapture; // Sky capture, lighting color palette, dynamic we
 #include "/include/utility/sampling.glsl"
 #include "/include/utility/sphericalHarmonics.glsl"
 #include "/include/utility/encoding.glsl"
-#include "/include/utility/textureSampling.glsl"
 
 //--// Functions //-----------------------------------------------------------//
 

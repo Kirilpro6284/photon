@@ -20,7 +20,7 @@ bool raymarchIntersection (
 	//--// Intersection loop
 
 	for (int i = 0; i < intersectionStepCount; ++i, rayPos += rayStep) {
-		float depth = texelFetch(lodDepthTex1, ivec2(rayPos.xy * viewSize), 0).x;
+		float depth = texelFetch(lodDepthTex1, ivec2(rayPos.xy * internalScreenSize), 0).x;
 
 		if (depth > rayPos.z && abs(rayPos.z - depth) < (depthTolerance * max(abs(rayStep.z), abs(rayPos.z) * 0.075))) {
 			hit = true;
@@ -35,7 +35,7 @@ bool raymarchIntersection (
 	for (int i = 0; i < refinementStepCount; ++i) {
 		rayStep *= 0.5;
 
-		float depth = texelFetch(lodDepthTex1, ivec2(rayPos.xy * viewSize), 0).x;
+		float depth = texelFetch(lodDepthTex1, ivec2(rayPos.xy * internalScreenSize), 0).x;
 
 		if (depth > rayPos.z) {
 			rayPos -= rayStep;
@@ -60,7 +60,7 @@ bool traceScreenSpaceRay (
 	
 	vec3 screenDir = normalize(viewToScreenSpace(viewPos + viewDir, true) - screenPos);
 
-	float rayLength = intersectBox(screenPos, screenDir, mat2x3(vec3(0.0), vec3(1.0))).y;
+	float rayLength = intersectBox(screenPos, screenDir, mat2x3(vec3(0.0, 0.0, -0.3), vec3(1.0))).y;
 	uint intersectionStepCount = uint(float(maxIntersectionStepCount) * (dampen(clamp01(rayLength)) * 0.5 + 0.5));
 
 	vec3 rayDir = screenDir * rayLength;

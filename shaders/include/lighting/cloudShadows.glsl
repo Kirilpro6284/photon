@@ -6,7 +6,7 @@
 const ivec2 cloudShadowTileRes = ivec2(256);
 const ivec2 cloudShadowMapRes = ivec2(512);
 
-const float cloudShadowIntensity = 0.9;
+const float cloudShadowIntensity = 0.95;
 
 vec3 projectCloudShadowMap (vec3 scenePos) {
 	vec2 cloudShadowPos  = (mat3(shadowModelView) * scenePos).xy + renderDistance * rcp(128.0) * (fract(mat3(shadowModelView) * cameraPosition * rcp(renderDistance) * 128.0).xy - 0.5);
@@ -39,14 +39,11 @@ float getCloudShadows (sampler2D cloudShadowMap, vec3 scenePos) {
 	// fade out cloud shadows when:
 	// - the fragment is above the cloud layer
 	// - the sun is near the horizon
-	float altitudeFraction = (scenePos.y + eyeAltitude - SEA_LEVEL) * (CLOUDS_SCALE / CLOUDS_LAYER0_THICKNESS) - CLOUDS_LAYER0_ALTITUDE;
-	float cloudShadowFade  = smoothstep(0.0, 0.7, 1.0 - altitudeFraction);
+	float cloudShadowFade  = 1.0 - smoothstep(CLOUDS_LAYER0_ALTITUDE * CLOUDS_SCALE, (CLOUDS_LAYER0_ALTITUDE + CLOUDS_LAYER0_THICKNESS) * CLOUDS_SCALE, scenePos.y + eyeAltitude - SEA_LEVEL);
 	      cloudShadowFade *= smoothstep(0.1, 0.2, shadowDir.y);
+		  cloudShadowFade *= cloudShadowIntensity;
 
-	float cloudShadow = textureBicubic(cloudShadowMap, cloudShadowPos.xy).x;
-	      cloudShadow = mix(1.0, cloudShadow, cloudShadowFade);
-
-	return cloudShadow * cloudShadowIntensity + (1.0 - cloudShadowIntensity);
+	return textureBicubic(cloudShadowMap, cloudShadowPos.xy).x * cloudShadowFade + (1.0 - cloudShadowFade);
 #endif
 }
 

@@ -58,7 +58,7 @@ const float lodBias = log2(renderScale);
 const float waterOpacity = 0.02;
 
 void voxy_emitFragment (VoxyFragmentParameters parameters) {
-	vec2 coord = gl_FragCoord.xy * viewTexelSize;
+	vec2 coord = gl_FragCoord.xy * internalTexelSize;
 	if (clamp01(coord) != coord) discard;
 
 	uint blockId = parameters.customId - 10000u;
@@ -179,7 +179,7 @@ void voxy_emitFragment (VoxyFragmentParameters parameters) {
 
     /* -- fog -- */
 
-	vec3 clearSky = getAtmosphereScattering(normalize(-viewerDir), sunDir);
+	vec3 clearSky = sunIrradiance * getAtmosphereScattering(normalize(-viewerDir), sunDir);
 	fragColor.rgb = applyFog(fragColor.rgb, scenePos, clearSky);
 
 	/* -- set water mask -- */

@@ -84,7 +84,7 @@ const float lodBias = log2(renderScale);
 const float waterOpacity = 0.02;
 
 void main() {
-	vec2 coord = gl_FragCoord.xy * viewTexelSize;
+	vec2 coord = gl_FragCoord.xy * internalTexelSize;
 	if (clamp01(coord) != coord) discard;
 
 	/* -- fetch lighting palette -- */
@@ -225,7 +225,7 @@ void main() {
 		lightingInfo.x = clamp01(rcp(32.0) * sssDepth);
 		lightingInfo.y = lmCoord.y;
 
-		waterMask.x = packUnorm2x8(normalTangent.xy * 0.5 + 0.5);
+		waterMask.x = packUnorm2x8(normalTangent.xy * 4.0 + 0.5);
 		waterMask.y = packUnorm2x8(lightingInfo);
 		waterMask.z = clamp01(viewerDistance / renderDistance);
 		waterMask.w = float(blockId == BLOCK_WATER);
@@ -296,11 +296,15 @@ void main() {
 	viewPos  = transform(gl_ModelViewMatrix, gl_Vertex.xyz);
 	scenePos = transform(gbufferModelViewInverse, viewPos);
 
-	reversedDepth = (lodProjMat_2.z * viewPos.z + lodProjMat_3.z) / (lodProjMat_2.w * viewPos.z + lodProjMat_3.w);
-
 	viewerDirTangent = normalize(gbufferModelViewInverse[3].xyz - scenePos) * tbnMatrix;
 
 	vec4 clipPos  = project(gl_ProjectionMatrix, viewPos);
+	
+#ifdef STAGE_HAND
+    viewPos = projectAndDivide(gbufferProjectionInverse, clipPos.xyz / clipPos.w);
+#endif
+
+	reversedDepth = (lodProjMat_2.z * viewPos.z + lodProjMat_3.z) / (lodProjMat_2.w * viewPos.z + lodProjMat_3.w);
 
 #ifdef TAA
     clipPos.xy += taa_offset * clipPos.w;

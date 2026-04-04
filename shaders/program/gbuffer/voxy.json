@@ -4,7 +4,7 @@
   ",
   "version": 1,
   "uniforms": [
-    "viewTexelSize",
+    "internalTexelSize",
     "frameCounter",
     "taa_offset",
     "vxProjInv",
@@ -28,7 +28,7 @@
     "viewShadowDir",
     "moonPhase",
     "timeNoon",
-    "viewSize",
+    "internalScreenSize",
     "vxRenderDistance",
     "lodProjMat_0",
     "lodProjMat_1",

@@ -8,11 +8,10 @@
 
 //--// Outputs //-------------------------------------------------------------//
 
-/* RENDERTARGETS: 5,6,7,13 */
+/* RENDERTARGETS: 5,6,7 */
 layout (location = 0) out vec3 depthTaaInfo; // depth info for TAA - responsive AA flag and neighbourhood min/max depth
 layout (location = 1) out vec3 aabbMin;      // minimum bound for AABB clipping
 layout (location = 2) out vec3 aabbMax;      // maximum bound for AABB clipping
-layout (location = 3) out vec4 temporalData; // current frame depth (front/back), light levels for next frame
 
 //--// Uniforms //------------------------------------------------------------//
 
@@ -111,7 +110,4 @@ void main() {
 
 	depthTaaInfo.y = (pack >> 16u) * rcp(65535.0);
 	depthTaaInfo.z = (pack & 65535u) * rcp(65535.0);
-
-	temporalData.xy = vec2(depth0, depth1);
-	temporalData.zw = unpackUnorm4x8(sceneData.y).zw; // light levels
 }

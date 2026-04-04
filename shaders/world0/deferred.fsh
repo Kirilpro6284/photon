@@ -91,7 +91,7 @@ void main() {
 
 		/* -- clouds -- */
 
-		vec3 rayOrigin = vec3(0.0, CLOUDS_SCALE * 16.0 + planetRadius, 0.0) + CLOUDS_SCALE;
+		vec3 rayOrigin = vec3(0.0, rcp(CLOUDS_SCALE) * 10.0 + planetRadius, 0.0) + rcp(CLOUDS_SCALE);
 
 		vec3 cloudsLightDir = cloudsMoonlit ? moonDir : sunDir;
 
